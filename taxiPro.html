@@ -1,0 +1,626 @@
+
+!DOCTYPE html
+html lang=ja
+head
+    meta charset=UTF-8
+    meta name=viewport content=width=device-width, initial-scale=1.0
+    titleMAGIタクシー売上管理title
+    script src=httpscdn.tailwindcss.comscript
+    script src=httpscdn.jsdelivr.netnpmchart.jsscript
+head
+body class=bg-gray-100 min-h-screen
+    div class=container mx-auto px-4 py-8 max-w-6xl
+        h1 class=text-3xl font-bold text-center mb-8 text-gray-800🚕 MAGIタクシー売上管理システムh1
+        
+        !-- 今日の概要カード --
+        div class=bg-white rounded-lg shadow-md p-6 mb-6
+            h2 class=text-xl font-semibold mb-4 text-gray-700今日の状況h2
+            div class=grid grid-cols-1 mdgrid-cols-4 gap-4
+                div class=bg-blue-50 p-4 rounded-lg
+                    p class=text-sm text-gray-600目標売上p
+                    p class=text-2xl font-bold text-blue-600 id=targetAmount¥50,000p
+                div
+                div class=bg-green-50 p-4 rounded-lg
+                    p class=text-sm text-gray-600現在の売上p
+                    p class=text-2xl font-bold text-green-600 id=currentRevenue¥0p
+                div
+                div class=bg-orange-50 p-4 rounded-lg
+                    p class=text-sm text-gray-600達成率p
+                    p class=text-2xl font-bold text-orange-600 id=achievementRate0%p
+                div
+                div class=bg-purple-50 p-4 rounded-lg
+                    p class=text-sm text-gray-600ロング客数p
+                    p class=text-2xl font-bold text-purple-600 id=longCustomerCount0件p
+                div
+            div
+        div
+
+        !-- 売上入力フォーム --
+        div class=bg-white rounded-lg shadow-md p-6 mb-6
+            h2 class=text-xl font-semibold mb-4 text-gray-700売上を記録h2
+            form id=revenueForm class=space-y-4
+                div class=grid grid-cols-1 mdgrid-cols-3 gap-4
+                    div
+                        label class=block text-sm font-medium text-gray-700 mb-1時間label
+                        input type=time id=time class=w-full px-3 py-2 border border-gray-300 rounded-md focusoutline-none focusring-2 focusring-blue-500 required
+                    div
+                    div
+                        label class=block text-sm font-medium text-gray-700 mb-1売上金額label
+                        input type=number id=amount class=w-full px-3 py-2 border border-gray-300 rounded-md focusoutline-none focusring-2 focusring-blue-500 placeholder=例 2500 required
+                    div
+                    div
+                        label class=block text-sm font-medium text-gray-700 mb-1曜日label
+                        select id=dayOfWeek class=w-full px-3 py-2 border border-gray-300 rounded-md focusoutline-none focusring-2 focusring-blue-500
+                            option value=月月曜日option
+                            option value=火火曜日option
+                            option value=水水曜日option
+                            option value=木木曜日option
+                            option value=金金曜日option
+                            option value=土土曜日option
+                            option value=日日曜日option
+                        select
+                    div
+                div
+                
+                !-- ロング客チェックボックス --
+                div class=flex items-center mb-4
+                    input type=checkbox id=isLongCustomer class=mr-2 h-4 w-4 text-blue-600 focusring-blue-500 border-gray-300 rounded
+                    label for=isLongCustomer class=text-sm font-medium text-gray-700ロング客（長距離乗客）label
+                div
+
+                !-- ロング客詳細（条件付き表示） --
+                div id=longCustomerDetails class=hidden space-y-4 p-4 bg-purple-50 rounded-lg
+                    h3 class=font-medium text-purple-800ロング客情報h3
+                    div class=grid grid-cols-1 mdgrid-cols-2 gap-4
+                        div
+                            label class=block text-sm font-medium text-gray-700 mb-1乗車場所label
+                            input type=text id=pickupLocation class=w-full px-3 py-2 border border-gray-300 rounded-md focusoutline-none focusring-2 focusring-purple-500 placeholder=例 駅前、空港、ホテル
+                        div
+                        div
+                            label class=block text-sm font-medium text-gray-700 mb-1降車場所label
+                            input type=text id=dropoffLocation class=w-full px-3 py-2 border border-gray-300 rounded-md focusoutline-none focusring-2 focusring-purple-500 placeholder=例 市内、隣町、観光地
+                        div
+                    div
+                    div
+                        label class=block text-sm font-medium text-gray-700 mb-1客層・特徴label
+                        input type=text id=customerType class=w-full px-3 py-2 border border-gray-300 rounded-md focusoutline-none focusring-2 focusring-purple-500 placeholder=例 ビジネスマン、観光客、家族連れ
+                    div
+                    div
+                        label class=block text-sm font-medium text-gray-700 mb-1距離（km）label
+                        input type=number id=distance class=w-full px-3 py-2 border border-gray-300 rounded-md focusoutline-none focusring-2 focusring-purple-500 placeholder=例 25
+                    div
+                div
+
+                div
+                    label class=block text-sm font-medium text-gray-700 mb-1メモ（任意）label
+                    input type=text id=memo class=w-full px-3 py-2 border border-gray-300 rounded-md focusoutline-none focusring-2 focusring-blue-500 placeholder=例 空港送迎、観光客など
+                div
+                button type=submit class=w-full bg-blue-600 text-white py-2 px-4 rounded-md hoverbg-blue-700 transition duration-200 font-medium
+                    売上を記録してMAGI分析を受ける
+                button
+            form
+        div
+
+        !-- MAGI分析結果表示エリア --
+        div id=magiAnalysis class=hidden bg-white rounded-lg shadow-md p-6 mb-6
+            h2 class=text-xl font-semibold mb-4 text-gray-700🧠 MAGI分析結果h2
+            div id=magiResults class=space-y-4 text-smdiv
+        div
+
+        !-- ロング客記録一覧 --
+        div class=bg-white rounded-lg shadow-md p-6 mb-6
+            h2 class=text-xl font-semibold mb-4 text-gray-700🎯 ロング客記録h2
+            div id=longCustomerList class=space-y-2
+                p class=text-gray-500 text-center py-4ロング客の記録がありませんp
+            div
+        div
+
+        !-- 売上一覧 --
+        div class=bg-white rounded-lg shadow-md p-6 mb-6
+            h2 class=text-xl font-semibold mb-4 text-gray-700今日の売上一覧h2
+            div id=revenueList class=space-y-2
+                p class=text-gray-500 text-center py-4売上データがありませんp
+            div
+        div
+
+        !-- 週間グラフ --
+        div class=bg-white rounded-lg shadow-md p-6
+            h2 class=text-xl font-semibold mb-4 text-gray-700週間売上推移h2
+            canvas id=weeklyChart width=400 height=200canvas
+        div
+
+        !-- データ操作ボタン --
+        div class=mt-6 flex gap-4 justify-center
+            button onclick=exportData() class=bg-gray-600 text-white py-2 px-4 rounded-md hoverbg-gray-700 transition duration-200
+                データエクスポート
+            button
+            button onclick=clearData() class=bg-red-600 text-white py-2 px-4 rounded-md hoverbg-red-700 transition duration-200
+                データをクリア
+            button
+        div
+    div
+
+    script
+         データ管理
+        let revenueData = JSON.parse(localStorage.getItem('taxiRevenue'))  [];
+        let longCustomerData = JSON.parse(localStorage.getItem('longCustomerData'))  [];
+        let targetAmount = parseInt(localStorage.getItem('targetAmount'))  50000;
+
+         初期化
+        document.addEventListener('DOMContentLoaded', function() {
+             現在時刻を設定
+            const now = new Date();
+            document.getElementById('time').value = now.toTimeString().slice(0, 5);
+            
+             曜日を設定
+            const days = ['日', '月', '火', '水', '木', '金', '土'];
+            document.getElementById('dayOfWeek').value = days[now.getDay()];
+            
+            updateDisplay();
+            updateChart();
+            document.getElementById('targetInput').value = targetAmount;
+        });
+
+         ロング客チェックボックスの表示切り替え
+        document.getElementById('isLongCustomer').addEventListener('change', function() {
+            const details = document.getElementById('longCustomerDetails');
+            if (this.checked) {
+                details.classList.remove('hidden');
+            } else {
+                details.classList.add('hidden');
+            }
+        });
+
+         MAGI分析関数
+        function performMAGiAnalysis(revenueRecord, todayTotal, target, longCustomers) {
+            const achievementRate = (todayTotal  target)  100;
+            const currentTime = revenueRecord.time;
+            const dayOfWeek = revenueRecord.dayOfWeek;
+            
+            let analysis = {
+                logic ,
+                moral ,
+                desire ,
+                future ,
+                critic ,
+                create ,
+                empathy ,
+                realist ,
+                care ,
+                rebel ,
+                meta ,
+                conclusion 
+            };
+
+             MAGI-1 (LOGIC) 論理・効率分析
+            if (achievementRate = 100) {
+                analysis.logic = 目標達成済み。現在時刻${currentTime}で${achievementRate.toFixed(1)}%達成。効率的な営業パターンを維持し、追加収入を最大化すべき。;
+            } else if (achievementRate = 80) {
+                analysis.logic = 目標達成に近い。残り${(target - todayTotal).toLocaleString()}円必要。平均単価2,500円ならあと${Math.ceil((target - todayTotal)  2500)}件程度。効率的なエリア移動を。;
+            } else if (achievementRate = 50) {
+                analysis.logic = 目標の半分程度。時間帯と曜日${dayOfWeek}を考慮し、商業施設や繁華街へ移動を推奨。残り${(target - todayTotal).toLocaleString()}円。;
+            } else {
+                analysis.logic = 目標達成まで大幅に不足。戦略的な見直しが必要。空港路線やホテル周辺、イベント会場など高単価エリアを検討。;
+            }
+
+             MAGI-2 (MORAL) 保守・道徳
+            analysis.moral = 安全運転を最優先に。無理な営みは禁物。疲労困憊状態での運転は顧客にも危険。必要なら休憩を。;
+
+             MAGI-3 (DESIRE) 直感・欲望
+            if (longCustomers.length  0) {
+                analysis.desire = ロング客獲得の手応えあり。運が向いてきている。勢いに乗れ。積極的に高単価エリアへ。;
+            } else {
+                analysis.desire = ビッグゲームを狙え。空港、観光地、高級ホテル。一発大逆転の可能性を信じて。;
+            }
+
+             MAGI-4 (FUTURE) 長期戦略
+            analysis.future = 今日のデータは来週の同じ曜日の参考になる。${dayOfWeek}曜日の成功パターンを確立し、週次戦略に組み込む。;
+
+             MAGI-5 (CRITIC) 批評・懐疑
+            analysis.critic = 現在地や時間帯による空車率の変動を考慮。単に金額だけでなく、効率（円時間）も測定すべき。;
+
+             MAGI-6 (CREATE) 創造・実験
+            analysis.create = 新規顧客層開拓を提案。SNSでの情報発信、観光案内の強化、独自のサービス差別化。;
+
+             MAGI-7 (EMPATHY) 共感・人脈
+            analysis.empathy = 常連客との関係性構築が重要。顧客のニーズを聞き、次回以降の繋がりを作る。;
+
+             MAGI-8 (REALIST) 現実・実務
+            analysis.realist = 現在地から最寄りの高需要エリアを確認。ガソリン代や時間を考慮した実践的な移動を。;
+
+             MAGI-9 (CARE) 自己肯定
+            analysis.care = 今日の努力を評価。${todayTotal.toLocaleString()}円稼いだことは確かな成果。焦らず着実に。;
+
+             MAGI-10 (REBEL) 挑発・逆張
+            analysis.rebel = 他のドライバーが避ける時間帯やエリアにこそチャンスあり。逆張りの発想で。;
+
+             MAGI-11 (META) 俯瞰・調停
+            analysis.meta = 数値目標と顧客満足度、安全運転のバランスを考慮。持続可能な営業スタイルの確立が最重要。;
+
+             判定結果
+            let approval = [];
+            let opposition = [];
+            let conditional = [];
+
+            if (achievementRate = 80) {
+                approval = [LOGIC, DESIRE, FUTURE];
+                conditional = [MORAL, REALIST];
+                opposition = [];
+            } else if (achievementRate = 50) {
+                approval = [CREATE, EMPATHY, REBEL];
+                conditional = [LOGIC, REALIST];
+                opposition = [];
+            } else {
+                approval = [CREATE, REBEL];
+                conditional = [LOGIC, FUTURE, REALIST];
+                opposition = [];
+            }
+
+             最終決議
+            let result, summary;
+            if (achievementRate = 100) {
+                result = 承認;
+                summary = 目標達成。追加収入を狙いつつ、次回以降の参考データを収集。;
+            } else if (achievementRate = 80) {
+                result = 条件付き承認;
+                summary = 目標達成目前。効率的な営業継続を推奨。安全と効率のバランスを。;
+            } else if (achievementRate = 50) {
+                result = 条件付き承認;
+                summary = 戦略的な見直し必要。高単価エリアへの移動と新規顧客開拓を。;
+            } else {
+                result = 再審議要求;
+                summary = 根本的な戦略変更を検討。時間帯、エリア、営業スタイルの見直しを。;
+            }
+
+            return {
+                results analysis,
+                decision {
+                    approval approval,
+                    opposition opposition,
+                    conditional conditional,
+                    result result,
+                    summary summary
+                }
+            };
+        }
+
+         売上記録
+        document.getElementById('revenueForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const time = document.getElementById('time').value;
+            const amount = parseInt(document.getElementById('amount').value);
+            const memo = document.getElementById('memo').value;
+            const dayOfWeek = document.getElementById('dayOfWeek').value;
+            const date = new Date().toLocaleDateString('ja-JP');
+            const isLongCustomer = document.getElementById('isLongCustomer').checked;
+            
+            const record = {
+                id Date.now(),
+                date date,
+                time time,
+                amount amount,
+                memo memo,
+                dayOfWeek dayOfWeek,
+                isLongCustomer isLongCustomer,
+                timestamp new Date().toISOString()
+            };
+            
+            revenueData.push(record);
+            localStorage.setItem('taxiRevenue', JSON.stringify(revenueData));
+            
+             ロング客の場合、詳細情報も保存
+            if (isLongCustomer) {
+                const longCustomerRecord = {
+                    id record.id,
+                    date date,
+                    time time,
+                    dayOfWeek dayOfWeek,
+                    amount amount,
+                    pickupLocation document.getElementById('pickupLocation').value,
+                    dropoffLocation document.getElementById('dropoffLocation').value,
+                    customerType document.getElementById('customerType').value,
+                    distance parseInt(document.getElementById('distance').value)  0,
+                    memo memo
+                };
+                longCustomerData.push(longCustomerRecord);
+                localStorage.setItem('longCustomerData', JSON.stringify(longCustomerData));
+            }
+            
+             MAGI分析実行
+            const todayTotal = revenueData
+                .filter(r = r.date === date)
+                .reduce((sum, r) = sum + r.amount, 0);
+            
+            const todayLongCustomers = longCustomerData
+                .filter(r = r.date === date);
+            
+            const magiAnalysis = performMAGiAnalysis(record, todayTotal, targetAmount, todayLongCustomers);
+            displayMAGiResults(magiAnalysis);
+            
+             フォームクリア
+            this.reset();
+            document.getElementById('longCustomerDetails').classList.add('hidden');
+            document.getElementById('isLongCustomer').checked = false;
+            
+             現在時刻を再設定
+            const now = new Date();
+            document.getElementById('time').value = now.toTimeString().slice(0, 5);
+            
+             表示更新
+            updateDisplay();
+            updateChart();
+        });
+
+         MAGI結果表示
+        function displayMAGiResults(analysis) {
+            const resultsDiv = document.getElementById('magiResults');
+            const analysisDiv = document.getElementById('magiAnalysis');
+            
+            resultsDiv.innerHTML = `
+                div class=space-y-3
+                    div class=p-3 bg-blue-50 rounded-lg
+                        span class=font-semibold text-blue-700🔵 MAGI-1 (LOGIC)span
+                        span class=ml-2${analysis.results.logic}span
+                    div
+                    div class=p-3 bg-yellow-50 rounded-lg
+                        span class=font-semibold text-yellow-700🟡 MAGI-2 (MORAL)span
+                        span class=ml-2${analysis.results.moral}span
+                    div
+                    div class=p-3 bg-red-50 rounded-lg
+                        span class=font-semibold text-red-700🔴 MAGI-3 (DESIRE)span
+                        span class=ml-2${analysis.results.desire}span
+                    div
+                    div class=p-3 bg-purple-50 rounded-lg
+                        span class=font-semibold text-purple-700🟣 MAGI-4 (FUTURE)span
+                        span class=ml-2${analysis.results.future}span
+                    div
+                    div class=p-3 bg-gray-50 rounded-lg
+                        span class=font-semibold text-gray-700⚫ MAGI-5 (CRITIC)span
+                        span class=ml-2${analysis.results.critic}span
+                    div
+                    div class=p-3 bg-green-50 rounded-lg
+                        span class=font-semibold text-green-700🟢 MAGI-6 (CREATE)span
+                        span class=ml-2${analysis.results.create}span
+                    div
+                    div class=p-3 bg-cyan-50 rounded-lg
+                        span class=font-semibold text-cyan-700🩵 MAGI-7 (EMPATHY)span
+                        span class=ml-2${analysis.results.empathy}span
+                    div
+                    div class=p-3 bg-amber-50 rounded-lg
+                        span class=font-semibold text-amber-700🟤 MAGI-8 (REALIST)span
+                        span class=ml-2${analysis.results.realist}span
+                    div
+                    div class=p-3 bg-pink-50 rounded-lg
+                        span class=font-semibold text-pink-700🩷 MAGI-9 (CARE)span
+                        span class=ml-2${analysis.results.care}span
+                    div
+                    div class=p-3 bg-white border rounded-lg
+                        span class=font-semibold text-gray-700⚪ MAGI-10 (REBEL)span
+                        span class=ml-2${analysis.results.rebel}span
+                    div
+                div
+                
+                div class=mt-4 p-4 bg-indigo-50 rounded-lg border-2 border-indigo-200
+                    span class=font-semibold text-indigo-700🪞 MAGI-11 (META) 俯瞰所見span
+                    span class=ml-2${analysis.results.meta}span
+                div
+                
+                div class=mt-4 p-4 bg-gray-100 rounded-lg
+                    h4 class=font-bold text-gray-800 mb-2【判定結果】h4
+                    pspan class=font-semibold賛成span ${analysis.decision.approval.join(', ')}p
+                    pspan class=font-semibold反対span ${analysis.decision.opposition.join(', ')}p
+                    pspan class=font-semibold条件付きspan ${analysis.decision.conditional.join(', ')}p
+                    
+                    h4 class=font-bold text-gray-800 mt-3 mb-2【最終決議】h4
+                    pspan class=font-semibold結果span ${analysis.decision.result}p
+                    pspan class=font-semibold総評span ${analysis.decision.summary}p
+                div
+            `;
+            
+            analysisDiv.classList.remove('hidden');
+        }
+
+         表示更新
+        function updateDisplay() {
+            const today = new Date().toLocaleDateString('ja-JP');
+            const todayRevenue = revenueData
+                .filter(record = record.date === today)
+                .reduce((sum, record) = sum + record.amount, 0);
+            
+            const todayLongCustomers = longCustomerData
+                .filter(record = record.date === today);
+            
+            document.getElementById('targetAmount').textContent = `¥${targetAmount.toLocaleString()}`;
+            document.getElementById('currentRevenue').textContent = `¥${todayRevenue.toLocaleString()}`;
+            document.getElementById('longCustomerCount').textContent = `${todayLongCustomers.length}件`;
+            
+            const achievementRate = Math.round((todayRevenue  targetAmount)  100);
+            document.getElementById('achievementRate').textContent = `${achievementRate}%`;
+            
+             売上一覧更新
+            updateRevenueList();
+             ロング客一覧更新
+            updateLongCustomerList();
+        }
+
+         売上一覧更新
+        function updateRevenueList() {
+            const today = new Date().toLocaleDateString('ja-JP');
+            const todayRecords = revenueData.filter(record = record.date === today);
+            
+            const listContainer = document.getElementById('revenueList');
+            
+            if (todayRecords.length === 0) {
+                listContainer.innerHTML = 'p class=text-gray-500 text-center py-4売上データがありませんp';
+                return;
+            }
+            
+            listContainer.innerHTML = todayRecords
+                .sort((a, b) = a.time.localeCompare(b.time))
+                .map(record = `
+                    div class=flex justify-between items-center p-3 bg-gray-50 rounded-lg ${record.isLongCustomer  'border-l-4 border-purple-500'  ''}
+                        div
+                            span class=font-medium${record.time}span
+                            span class=text-gray-600 ml-2(${record.dayOfWeek})span
+                            ${record.memo  `span class=text-gray-600 ml-2- ${record.memo}span`  ''}
+                            ${record.isLongCustomer  'span class=ml-2 px-2 py-1 bg-purple-100 text-purple-700 text-xs roundedロング客span'  ''}
+                        div
+                        div class=flex items-center gap-2
+                            span class=font-bold text-green-600¥${record.amount.toLocaleString()}span
+                            button onclick=deleteRecord(${record.id}) class=text-red-500 hovertext-red-700 text-sm削除button
+                        div
+                    div
+                `).join('');
+        }
+
+         ロング客一覧更新
+        function updateLongCustomerList() {
+            const listContainer = document.getElementById('longCustomerList');
+            
+            if (longCustomerData.length === 0) {
+                listContainer.innerHTML = 'p class=text-gray-500 text-center py-4ロング客の記録がありませんp';
+                return;
+            }
+            
+             直近の10件を表示
+            const recentLongCustomers = longCustomerData
+                .sort((a, b) = new Date(b.timestamp  b.date + ' ' + b.time) - new Date(a.timestamp  a.date + ' ' + a.time))
+                .slice(0, 10);
+            
+            listContainer.innerHTML = recentLongCustomers
+                .map(record = `
+                    div class=p-3 bg-purple-50 rounded-lg border border-purple-200
+                        div class=flex justify-between items-start mb-2
+                            div
+                                span class=font-medium${record.date} ${record.time}span
+                                span class=text-purple-600 ml-2(${record.dayOfWeek})span
+                            div
+                            span class=font-bold text-purple-700¥${record.amount.toLocaleString()}span
+                        div
+                        div class=text-sm text-gray-600 space-y-1
+                            pspan class=font-medium経路span ${record.pickupLocation} → ${record.dropoffLocation}p
+                            pspan class=font-medium距離span ${record.distance}kmp
+                            pspan class=font-medium客層span ${record.customerType}p
+                            ${record.memo  `pspan class=font-mediumメモspan ${record.memo}p`  ''}
+                        div
+                    div
+                `).join('');
+        }
+
+         レコード削除
+        function deleteRecord(id) {
+            if (confirm('この売上記録を削除しますか？')) {
+                revenueData = revenueData.filter(record = record.id !== id);
+                longCustomerData = longCustomerData.filter(record = record.id !== id);
+                localStorage.setItem('taxiRevenue', JSON.stringify(revenueData));
+                localStorage.setItem('longCustomerData', JSON.stringify(longCustomerData));
+                updateDisplay();
+                updateChart();
+            }
+        }
+
+         週間グラフ更新
+        function updateChart() {
+            const ctx = document.getElementById('weeklyChart').getContext('2d');
+            
+             過去7日間のデータを取得
+            const last7Days = [];
+            const dailyRevenue = [];
+            
+            for (let i = 6; i = 0; i--) {
+                const date = new Date();
+                date.setDate(date.getDate() - i);
+                const dateStr = date.toLocaleDateString('ja-JP');
+                const dayName = date.toLocaleDateString('ja-JP', { weekday 'short' });
+                
+                last7Days.push(dayName);
+                
+                const dayRevenue = revenueData
+                    .filter(record = record.date === dateStr)
+                    .reduce((sum, record) = sum + record.amount, 0);
+                
+                dailyRevenue.push(dayRevenue);
+            }
+            
+             既存のチャートを破棄
+            if (window.weeklyChart) {
+                window.weeklyChart.destroy();
+            }
+            
+            window.weeklyChart = new Chart(ctx, {
+                type 'line',
+                data {
+                    labels last7Days,
+                    datasets [{
+                        label '日次売上',
+                        data dailyRevenue,
+                        borderColor 'rgb(59, 130, 246)',
+                        backgroundColor 'rgba(59, 130, 246, 0.1)',
+                        tension 0.1
+                    }, {
+                        label '目標売上',
+                        data Array(7).fill(targetAmount),
+                        borderColor 'rgb(239, 68, 68)',
+                        borderDash [5, 5],
+                        fill false
+                    }]
+                },
+                options {
+                    responsive true,
+                    plugins {
+                        legend {
+                            position 'top',
+                        },
+                        title {
+                            display true,
+                            text '週間売上推移'
+                        }
+                    },
+                    scales {
+                        y {
+                            beginAtZero true,
+                            ticks {
+                                callback function(value) {
+                                    return '¥' + value.toLocaleString();
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+         データエクスポート
+        function exportData() {
+            const exportData = {
+                revenueData revenueData,
+                longCustomerData longCustomerData,
+                targetAmount targetAmount,
+                exportDate new Date().toISOString()
+            };
+            
+            const dataStr = JSON.stringify(exportData, null, 2);
+            const dataBlob = new Blob([dataStr], {type 'applicationjson'});
+            const url = URL.createObjectURL(dataBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `taxi-magi-data-${new Date().toISOString().split('T')[0]}.json`;
+            link.click();
+        }
+
+         データクリア
+        function clearData() {
+            if (confirm('すべてのデータを削除しますか？この操作は取り消せません。')) {
+                localStorage.removeItem('taxiRevenue');
+                localStorage.removeItem('longCustomerData');
+                revenueData = [];
+                longCustomerData = [];
+                updateDisplay();
+                updateChart();
+                alert('データをクリアしました。');
+            }
+        }
+    script
+body
+html
