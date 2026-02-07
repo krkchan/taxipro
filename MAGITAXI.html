@@ -1,0 +1,39 @@
+
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MAGI高度タクシー売上管理 - ダークモード</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        'dark-bg': '#1a1a1a',
+                        'dark-card': '#2d2d2d',
+                        'dark-text': '#e0e0e0',
+                        'dark-border': '#404040'
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-gray-50 dark:bg-dark-bg text-gray-900 dark:text-dark-text transition-colors duration-300">
+    <!-- ダークモード切り替えボタン -->
+    <div class="fixed top-4 right-4 z-50">
+        <button id="darkModeToggle" class="p-3 rounded-full bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
+            <span class="text-xl">🌙</span>
+        </button>
+    </div>
+
+    <div class="container mx-auto px-4 py-8 max-w-7xl">
+        <h1 class="text-3xl font-bold text-center mb-8 text-gray-800 dark:text-dark-text">🚕 MAGI高度タクシー管理システム</h1>
+        
+        <!-- 月間情報カード
