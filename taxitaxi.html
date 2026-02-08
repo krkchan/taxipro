@@ -4,821 +4,403 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MAGIタクシー売上管理 - ダークモード</title>
+    <title>MAGI TAXI - Dynamic Target</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
-        // ダークモード設定
         tailwind.config = {
             darkMode: 'class',
             theme: {
                 extend: {
                     colors: {
-                        'dark-bg': '#1a1a1a',
-                        'dark-card': '#2d2d2d',
+                        'dark-bg': '#000000',
+                        'dark-card': '#121212',
+                        'dark-input': '#1e1e1e',
                         'dark-text': '#e0e0e0',
-                        'dark-border': '#404040'
                     }
                 }
             }
         }
     </script>
+    <style>
+        .stat-value { font-variant-numeric: tabular-nums; }
+        button { touch-action: manipulation; }
+        .blink-dot { animation: blink 2s infinite; }
+        @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
+    </style>
 </head>
-<body class="bg-gray-50 dark:bg-dark-bg text-gray-900 dark:text-dark-text transition-colors duration-300">
-    <!-- ダークモード切り替えボタン -->
-    <div class="fixed top-4 right-4 z-50">
-        <button id="darkModeToggle" class="p-3 rounded-full bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
-            <span class="text-xl">🌙</span>
-        </button>
+<body class="bg-gray-100 dark:bg-dark-bg text-gray-900 dark:text-dark-text transition-colors duration-200 pb-32">
+    
+    <!-- ヘッダー -->
+    <div class="fixed top-0 left-0 right-0 bg-white/95 dark:bg-dark-card/95 backdrop-blur z-40 border-b border-gray-200 dark:border-gray-800 shadow-sm px-4 py-2 flex justify-between items-center">
+        <div>
+            <p class="text-[10px] text-gray-500 dark:text-gray-400">現在時刻</p>
+            <p class="text-xl font-bold font-mono leading-none tracking-tight" id="clockDisplay">--:--</p>
+        </div>
+        <div class="text-right">
+            <p class="text-[10px] text-gray-500 dark:text-gray-400">営業日扱い</p>
+            <p class="text-sm font-bold text-indigo-600 dark:text-indigo-400" id="logicalDateDisplay">--/-- (--)</p>
+        </div>
     </div>
 
-    <div class="container mx-auto px-4 py-8 max-w-6xl">
-        <h1 class="text-3xl font-bold text-center mb-8 text-gray-800 dark:text-dark-text">🚕 MAGIタクシー売上管理</h1>
+    <div class="container mx-auto px-3 pt-20 max-w-lg">
         
-        <!-- 月間情報カード -->
-        <div class="bg-white dark:bg-dark-card rounded-lg shadow-md p-6 mb-6 border border-gray-200 dark:border-dark-border">
-            <h2 class="text-xl font-semibold mb-4 text-gray-700 dark:text-dark-text">📅 <span id="currentMonth">2026年2月</span> 営業情報</h2>
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div class="bg-blue-50 dark:bg-blue-900 p-4 rounded-lg">
-                    <p class="text-sm text-gray-600 dark:text-gray-300">月間営業日数</p>
-                    <p class="text-2xl font-bold text-blue-600 dark:text-blue-400" id="monthlyWorkDays">0日</p>
+        <!-- シフト情報 -->
+        <div class="bg-white dark:bg-dark-card rounded-xl shadow-sm p-4 mb-3 border-l-4 border-indigo-500">
+            <div class="flex justify-between items-start">
+                <div>
+                    <h2 class="text-xs font-bold text-gray-400 mb-1">現在のシフト</h2>
+                    <div class="flex items-baseline gap-2">
+                        <span id="shiftStatus" class="text-3xl font-black text-indigo-600 dark:text-indigo-400">--</span>
+                        <span id="nextOff" class="text-xs font-bold text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">--</span>
+                    </div>
                 </div>
-                <div class="bg-green-50 dark:bg-green-900 p-4 rounded-lg">
-                    <p class="text-sm text-gray-600 dark:text-gray-300">本日の出勤</p>
-                    <p class="text-2xl font-bold text-green-600 dark:text-green-400" id="todayWorkDay">0日目</p>
+                <div class="text-right">
+                    <p class="text-[10px] text-gray-400 mb-1">シフト調整</p>
+                    <div class="flex bg-gray-100 dark:bg-gray-800 rounded-lg p-1 gap-1">
+                        <button onclick="adjustShift(-1)" class="w-8 h-8 flex items-center justify-center bg-white dark:bg-dark-input rounded shadow text-gray-600 dark:text-gray-300 font-bold active:scale-95">◀</button>
+                        <button onclick="adjustShift(1)" class="w-8 h-8 flex items-center justify-center bg-white dark:bg-dark-input rounded shadow text-gray-600 dark:text-gray-300 font-bold active:scale-95">▶</button>
+                    </div>
                 </div>
-                <div class="bg-orange-50 dark:bg-orange-900 p-4 rounded-lg">
-                    <p class="text-sm text-gray-600 dark:text-gray-300">残り営業日数</p>
-                    <p class="text-2xl font-bold text-orange-600 dark:text-orange-400" id="remainingWorkDays">0日</p>
+            </div>
+        </div>
+
+        <!-- 今日の売上 & 目標分析（ここを強化） -->
+        <div class="bg-white dark:bg-dark-card rounded-xl shadow-lg p-4 mb-4 border-l-4 border-green-500">
+            <!-- 上段: 売上 -->
+            <div class="flex justify-between items-center mb-1">
+                <h2 class="text-xs font-bold text-gray-500 uppercase flex items-center gap-1">
+                    <span class="w-2 h-2 rounded-full bg-green-500 blink-dot"></span> 現在の売上
+                </h2>
+                <span id="todayAchievement" class="text-xl font-black text-green-600 dark:text-green-400 stat-value">0%</span>
+            </div>
+            <div class="flex items-baseline gap-2 mb-3 border-b border-gray-100 dark:border-gray-800 pb-3">
+                <p class="text-5xl font-black text-gray-900 dark:text-white stat-value tracking-tighter" id="todayTotal">0</p>
+                <span class="text-sm font-bold text-gray-400">円</span>
+            </div>
+
+            <!-- 中段: ノルマ分析 -->
+            <div class="space-y-3">
+                <!-- 1. 基本ノルマ -->
+                <div class="flex justify-between items-center text-xs">
+                    <span class="text-gray-500">当初の均等ノルマ:</span>
+                    <span class="font-bold text-gray-700 dark:text-gray-300 text-sm">¥<span id="staticTarget">0</span></span>
                 </div>
-                <div class="bg-purple-50 dark:bg-purple-900 p-4 rounded-lg">
-                    <p class="text-sm text-gray-600 dark:text-gray-300">1日目標金額</p>
-                    <p class="text-2xl font-bold text-purple-600 dark:text-purple-400" id="dailyTarget">¥0</p>
+
+                <!-- 2. 動的ノルマ（ここが新機能） -->
+                <div class="bg-gray-50 dark:bg-gray-800/60 rounded-lg p-2.5">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-xs font-bold text-gray-600 dark:text-gray-400">明日以降の必要平均</span>
+                        <span class="text-xs font-bold bg-white dark:bg-gray-700 px-2 py-0.5 rounded shadow-sm text-gray-500">残り <span id="futureDaysCount">0</span> 日</span>
+                    </div>
+                    <div class="flex justify-between items-end">
+                        <div>
+                            <p class="text-xl font-black stat-value transition-colors duration-300" id="dynamicTarget">¥0</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-[10px] text-gray-400">当初比</p>
+                            <p class="text-xs font-bold stat-value" id="targetDiff">±0</p>
+                        </div>
+                    </div>
+                    <p class="text-[10px] text-right mt-1 text-gray-400" id="dynamicMessage">--</p>
                 </div>
             </div>
             
-            <!-- 月間目標選択 -->
-            <div class="mt-6 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                <h3 class="font-semibold mb-3 text-gray-700 dark:text-dark-text">月間目標選択</h3>
-                <div class="grid grid-cols-3 gap-4">
-                    <button onclick="setMonthlyTarget(600000)" class="monthly-target-btn p-3 rounded-lg bg-blue-100 dark:bg-blue-900 hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors border-2 border-blue-300 dark:border-blue-600" data-target="600000">
-                        <div class="text-lg font-bold text-blue-700 dark:text-blue-300">60万円</div>
-                        <div class="text-sm text-blue-600 dark:text-blue-400" id="target60k">1日 ¥0</div>
-                    </button>
-                    <button onclick="setMonthlyTarget(700000)" class="monthly-target-btn p-3 rounded-lg bg-green-100 dark:bg-green-900 hover:bg-green-200 dark:hover:bg-green-800 transition-colors border-2 border-green-300 dark:border-green-600" data-target="700000">
-                        <div class="text-lg font-bold text-green-700 dark:text-green-300">70万円</div>
-                        <div class="text-sm text-green-600 dark:text-green-400" id="target70k">1日 ¥0</div>
-                    </button>
-                    <button onclick="setMonthlyTarget(800000)" class="monthly-target-btn p-3 rounded-lg bg-purple-100 dark:bg-purple-900 hover:bg-purple-200 dark:hover:bg-purple-800 transition-colors border-2 border-purple-300 dark:border-purple-600" data-target="800000">
-                        <div class="text-lg font-bold text-purple-700 dark:text-purple-300">80万円</div>
-                        <div class="text-sm text-purple-600 dark:text-purple-400" id="target80k">1日 ¥0</div>
-                    </button>
-                </div>
+            <div class="text-right mt-2 text-[10px] text-gray-400">
+                月計: <span id="monthlyTotal">0</span>円
             </div>
         </div>
 
-        <!-- 今日の状況カード -->
-        <div class="bg-white dark:bg-dark-card rounded-lg shadow-md p-6 mb-6 border border-gray-200 dark:border-dark-border">
-            <h2 class="text-xl font-semibold mb-4 text-gray-700 dark:text-dark-text">📊 今日の状況</h2>
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div class="bg-blue-50 dark:bg-blue-900 p-4 rounded-lg">
-                    <p class="text-sm text-gray-600 dark:text-gray-300">目標売上</p>
-                    <p class="text-2xl font-bold text-blue-600 dark:text-blue-400" id="targetAmount">¥0</p>
-                </div>
-                <div class="bg-green-50 dark:bg-green-900 p-4 rounded-lg">
-                    <p class="text-sm text-gray-600 dark:text-gray-300">現在の売上</p>
-                    <p class="text-2xl font-bold text-green-600 dark:text-green-400" id="currentRevenue">¥0</p>
-                </div>
-                <div class="bg-orange-50 dark:bg-orange-900 p-4 rounded-lg">
-                    <p class="text-sm text-gray-600 dark:text-gray-300">達成率</p>
-                    <p class="text-2xl font-bold text-orange-600 dark:text-orange-400" id="achievementRate">0%</p>
-                </div>
-                <div class="bg-purple-50 dark:bg-purple-900 p-4 rounded-lg">
-                    <p class="text-sm text-gray-600 dark:text-gray-300">ロング客数</p>
-                    <p class="text-2xl font-bold text-purple-600 dark:text-purple-400" id="longCustomerCount">0件</p>
+        <!-- 入力エリア -->
+        <div class="bg-white dark:bg-dark-card rounded-xl shadow-lg p-5 mb-6">
+            <div class="mb-4">
+                <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-2">現在のメーター合計金額</label>
+                <div class="relative">
+                    <input type="number" id="meterAmount" inputmode="numeric" class="w-full pl-4 pr-4 py-4 text-3xl font-bold bg-gray-100 dark:bg-dark-input border-2 border-transparent focus:border-blue-500 dark:text-white rounded-xl outline-none placeholder-gray-400 text-center" placeholder="0">
                 </div>
             </div>
-        </div>
 
-        <!-- 売上入力フォーム -->
-        <div class="bg-white dark:bg-dark-card rounded-lg shadow-md p-6 mb-6 border border-gray-200 dark:border-dark-border">
-            <h2 class="text-xl font-semibold mb-4 text-gray-700 dark:text-dark-text">💰 売上を記録</h2>
-            <form id="revenueForm" class="space-y-4">
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">時間</label>
-                        <input type="time" id="time" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-dark-text">
+            <div class="grid grid-cols-1 gap-4">
+                <button onclick="handleUpdateCurrent()" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-xl shadow-lg active:scale-[0.98] transition-all flex items-center justify-center gap-3">
+                    <span class="text-2xl">🔄</span>
+                    <div class="text-left leading-tight">
+                        <div class="text-lg font-bold">現在までの売上を更新</div>
+                        <div class="text-xs opacity-80 font-normal">休憩中・待機中にタップ</div>
                     </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">売上金額</label>
-                        <input type="number" id="amount" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-dark-text" placeholder="例: 2500">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">曜日</label>
-                        <select id="dayOfWeek" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-dark-text">
-                            <option value="月">月曜日</option>
-                            <option value="火">火曜日</option>
-                            <option value="水">水曜日</option>
-                            <option value="木">木曜日</option>
-                            <option value="金">金曜日</option>
-                            <option value="土">土曜日</option>
-                            <option value="日">日曜日</option>
-                        </select>
-                    </div>
-                </div>
-                
-                <!-- ロング客チェックボックス -->
-                <div class="flex items-center">
-                    <input type="checkbox" id="isLongCustomer" class="mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
-                    <label for="isLongCustomer" class="text-sm font-medium text-gray-700 dark:text-gray-300">ロング客（長距離乗客）</label>
-                </div>
-
-                <!-- ロング客詳細（条件付き表示） -->
-                <div id="longCustomerDetails" class="hidden space-y-4 p-4 bg-purple-50 dark:bg-purple-900 rounded-lg">
-                    <h3 class="font-medium text-purple-800 dark:text-purple-300">ロング客情報</h3>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">乗車場所</label>
-                            <input type="text" id="pickupLocation" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-gray-700 dark:text-dark-text" placeholder="例: 駅前、空港、ホテル">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">降車場所</label>
-                            <input type="text" id="dropoffLocation" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-gray-700 dark:text-dark-text" placeholder="例: 市内、隣町、観光地">
-                        </div>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">客層・特徴</label>
-                        <input type="text" id="customerType" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-gray-700 dark:text-dark-text" placeholder="例: ビジネスマン、観光客、家族連れ">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">距離（km）</label>
-                        <input type="number" id="distance" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-gray-700 dark:text-dark-text" placeholder="例: 25">
-                    </div>
-                </div>
-
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">メモ（任意）</label>
-                    <input type="text" id="memo" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-dark-text" placeholder="例: 空港送迎、観光客など">
-                </div>
-                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-md transition duration-200 font-medium">
-                    売上を記録してMAGI分析を受ける
                 </button>
-            </form>
-        </div>
 
-        <!-- MAGI分析結果表示エリア -->
-        <div id="magiAnalysis" class="hidden bg-white dark:bg-dark-card rounded-lg shadow-md p-6 mb-6 border border-gray-200 dark:border-dark-border">
-            <h2 class="text-xl font-semibold mb-4 text-gray-700 dark:text-dark-text">🧠 MAGI分析結果</h2>
-            <div id="magiResults" class="space-y-4 text-sm"></div>
-        </div>
-
-        <!-- ロング客記録一覧 -->
-        <div class="bg-white dark:bg-dark-card rounded-lg shadow-md p-6 mb-6 border border-gray-200 dark:border-dark-border">
-            <h2 class="text-xl font-semibold mb-4 text-gray-700 dark:text-dark-text">🎯 ロング客記録</h2>
-            <div id="longCustomerList" class="space-y-2">
-                <p class="text-gray-500 dark:text-gray-400 text-center py-4">ロング客の記録がありません</p>
-            </div>
-        </div>
-
-        <!-- 売上一覧 -->
-        <div class="bg-white dark:bg-dark-card rounded-lg shadow-md p-6 mb-6 border border-gray-200 dark:border-dark-border">
-            <h2 class="text-xl font-semibold mb-4 text-gray-700 dark:text-dark-text">今日の売上一覧</h2>
-            <div id="revenueList" class="space-y-2">
-                <p class="text-gray-500 dark:text-gray-400 text-center py-4">売上データがありません</p>
+                <button onclick="handleEndShift()" class="w-full bg-gray-800 dark:bg-red-900/40 hover:bg-gray-900 dark:hover:bg-red-900/60 border border-gray-200 dark:border-red-900 text-white dark:text-red-200 py-4 rounded-xl active:scale-[0.98] transition-all flex items-center justify-center gap-3 mt-2">
+                    <span class="text-2xl">🛑</span>
+                    <div class="text-left leading-tight">
+                        <div class="text-lg font-bold">業務終了（確定）</div>
+                        <div class="text-xs opacity-80 font-normal">本日の営業を締め切る</div>
+                    </div>
+                </button>
             </div>
         </div>
 
         <!-- 週間グラフ -->
-        <div class="bg-white dark:bg-dark-card rounded-lg shadow-md p-6 mb-6 border border-gray-200 dark:border-dark-border">
-            <h2 class="text-xl font-semibold mb-4 text-gray-700 dark:text-dark-text">週間売上推移</h2>
-            <canvas id="weeklyChart" width="400" height="200"></canvas>
+        <div class="bg-white dark:bg-dark-card rounded-xl shadow-sm p-4 mb-6">
+            <h3 class="text-xs font-bold text-gray-400 mb-2">WEEKLY TREND</h3>
+            <div class="h-40">
+                <canvas id="weeklyChart"></canvas>
+            </div>
         </div>
 
-        <!-- データ操作ボタン -->
-        <div class="flex gap-4 justify-center">
-            <button onclick="exportData()" class="bg-gray-600 hover:bg-gray-700 text-white py-2 px-4 rounded-md transition duration-200">
-                データエクスポート
-            </button>
-            <button onclick="clearData()" class="bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded-md transition duration-200">
-                データをクリア
-            </button>
+        <!-- 公出・修正 -->
+        <details class="mb-24 bg-gray-100 dark:bg-dark-input rounded-xl overflow-hidden">
+            <summary class="p-4 text-xs font-bold text-gray-600 dark:text-gray-400 cursor-pointer select-none flex justify-between items-center">
+                <span>🛠️ 公出 / 修正</span>
+                <span>▼</span>
+            </summary>
+            <div class="p-4 border-t border-gray-200 dark:border-gray-700 space-y-6">
+                <div>
+                    <h4 class="text-xs font-bold text-indigo-500 mb-2">公出（臨時）</h4>
+                    <div class="flex gap-2">
+                        <input type="date" id="koshutsuDate" class="w-1/3 p-2 text-xs rounded dark:bg-dark-card dark:text-white border dark:border-gray-700">
+                        <input type="number" id="koshutsuAmount" class="w-2/3 p-2 text-sm font-bold rounded dark:bg-dark-card dark:text-white border dark:border-gray-700" placeholder="金額">
+                    </div>
+                    <button onclick="handleKoshutsuSubmit()" class="mt-2 w-full bg-indigo-600 text-white text-xs font-bold py-2 rounded">追加のみ</button>
+                </div>
+                <div>
+                    <h4 class="text-xs font-bold text-orange-500 mb-2">過去修正</h4>
+                    <div class="flex gap-2 mb-2">
+                        <input type="date" id="editDate" class="w-1/3 p-2 text-xs rounded dark:bg-dark-card dark:text-white border dark:border-gray-700">
+                        <input type="number" id="editAmount" class="w-2/3 p-2 text-sm font-bold rounded dark:bg-dark-card dark:text-white border dark:border-gray-700" placeholder="金額">
+                    </div>
+                    <button onclick="handlePastSubmit()" class="w-full bg-orange-500 text-white text-xs font-bold py-2 rounded">上書き保存</button>
+                </div>
+            </div>
+        </details>
+
+        <!-- フッター -->
+        <div class="fixed bottom-0 left-0 right-0 bg-white dark:bg-dark-card border-t dark:border-gray-800 p-3 z-30 pb-safe">
+            <div class="container mx-auto max-w-lg flex justify-between items-center">
+                <div class="flex gap-2">
+                    <button onclick="setTarget(600000)" class="target-btn px-2 py-1 text-[10px] rounded border dark:border-gray-700 dark:text-gray-300">60万</button>
+                    <button onclick="setTarget(700000)" class="target-btn px-2 py-1 text-[10px] rounded border dark:border-gray-700 dark:text-gray-300">70万</button>
+                    <button onclick="setTarget(800000)" class="target-btn px-2 py-1 text-[10px] rounded border dark:border-gray-700 dark:text-gray-300">80万</button>
+                </div>
+                <button onclick="toggleDark()" class="text-xs p-2">🌙</button>
+            </div>
         </div>
     </div>
 
     <script>
-        // ダークモード管理
-        const darkModeToggle = document.getElementById('darkModeToggle');
-        const html = document.documentElement;
+        const CONFIG = {
+            anchorDate: new Date(2026, 1, 8),
+            anchorIndex: 3,
+            pattern: [1, 1, 1, 1, 0, 0],
+            cutoffHour: 6
+        };
 
-        // ダークモード初期化
-        if (localStorage.getItem('darkMode') === 'true' || 
-            (!localStorage.getItem('darkMode') && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-            html.classList.add('dark');
-            darkModeToggle.innerHTML = '☀️';
+        let STATE = {
+            revenue: JSON.parse(localStorage.getItem('taxi_rev_dynamic') || '[]'),
+            target: parseInt(localStorage.getItem('taxi_target_dynamic') || '600000'),
+            offset: parseInt(localStorage.getItem('taxi_offset_dynamic') || '0')
+        };
+
+        function getNow() { return new Date(); }
+        function getLogicalDate() {
+            const now = getNow();
+            if (now.getHours() < CONFIG.cutoffHour) {
+                const prev = new Date(now);
+                prev.setDate(now.getDate() - 1);
+                return prev;
+            }
+            return now;
+        }
+        function getDateStr(d) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+
+        function getShiftStatus(logicalDate) {
+            const t = new Date(logicalDate.getFullYear(), logicalDate.getMonth(), logicalDate.getDate());
+            const a = new Date(CONFIG.anchorDate.getFullYear(), CONFIG.anchorDate.getMonth(), CONFIG.anchorDate.getDate());
+            let idx = (CONFIG.anchorIndex + Math.floor((t-a)/(86400000)) + STATE.offset) % 6;
+            if (idx < 0) idx += 6;
+            const isWork = CONFIG.pattern[idx] === 1;
+            return { isWork, idx, label: isWork ? `${idx+1}日目` : `休日(${idx-3}日目)` };
         }
 
-        darkModeToggle.addEventListener('click', () => {
-            html.classList.toggle('dark');
-            const isDark = html.classList.contains('dark');
-            localStorage.setItem('darkMode', isDark);
-            darkModeToggle.innerHTML = isDark ? '☀️' : '🌙';
-        });
+        // 月の全営業日数と、明日以降の営業日数を計算
+        function calcWorkDays(logicalDate) {
+            const y = logicalDate.getFullYear(), m = logicalDate.getMonth();
+            const lastDay = new Date(y, m + 1, 0).getDate();
+            
+            let total = 0;
+            let future = 0; // 明日以降の営業日数
 
-        // 4勤務2休み計算クラス
-        class WorkScheduleCalculator {
-            constructor() {
-                this.workPattern = [true, true, true, true, false, false]; // 4勤務2休み
-                this.referenceDate = new Date(2026, 1, 1); // 2026年2月1日
-                this.referenceWorkDay = 3; // 3勤務目
-            }
-
-            // 指定年月の営業日数を計算
-            calculateMonthlyWorkDays(year, month) {
-                const firstDay = new Date(year, month, 1);
-                const lastDay = new Date(year, month + 1, 0);
+            for(let d=1; d<=lastDay; d++) {
+                const chk = new Date(y, m, d);
+                const isW = getShiftStatus(chk).isWork || STATE.revenue.some(r=>r.date===getDateStr(chk)&&r.isKoshutsu);
                 
-                // 基準日からの日数差を計算
-                const diffTime = firstDay - this.referenceDate;
-                const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-                
-                // 基準日の勤務日インデックスを求める
-                let currentIndex = (this.referenceWorkDay - 1 + diffDays) % 6;
-                if (currentIndex < 0) currentIndex += 6;
-                
-                let workDays = 0;
-                let currentDate = new Date(firstDay);
-                
-                while (currentDate <= lastDay) {
-                    if (this.workPattern[currentIndex]) {
-                        workDays++;
-                    }
-                    
-                    currentDate.setDate(currentDate.getDate() + 1);
-                    currentIndex = (currentIndex + 1) % 6;
+                if(isW) {
+                    total++;
+                    if(d > logicalDate.getDate()) future++;
                 }
-                
-                return workDays;
             }
-
-            // 指定日がその月の何日目の出勤日か
-            getWorkDayIndex(date) {
-                const year = date.getFullYear();
-                const month = date.getMonth();
-                const firstDay = new Date(year, month, 1);
-                
-                // 基準日からの日数差を計算
-                const diffTime = date - this.referenceDate;
-                const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-                
-                // 基準日の勤務日インデックスを求める
-                let currentIndex = (this.referenceWorkDay - 1 + diffDays) % 6;
-                if (currentIndex < 0) currentIndex += 6;
-                
-                // 月初からの勤務日数をカウント
-                let workDayIndex = 0;
-                let currentDate = new Date(firstDay);
-                
-                while (currentDate <= date) {
-                    if (this.workPattern[currentIndex]) {
-                        workDayIndex++;
-                    }
-                    
-                    if (currentDate.getTime() === date.getTime()) {
-                        break;
-                    }
-                    
-                    currentDate.setDate(currentDate.getDate() + 1);
-                    currentIndex = (currentIndex + 1) % 6;
-                }
-                
-                return workDayIndex;
-            }
-
-            // 残りの営業日数を計算
-            getRemainingWorkDays(date) {
-                const year = date.getFullYear();
-                const month = date.getMonth();
-                const totalWorkDays = this.calculateMonthlyWorkDays(year, month);
-                const currentWorkDay = this.getWorkDayIndex(date);
-                return totalWorkDays - currentWorkDay;
-            }
-
-            // 今日が勤務日かどうか
-            isWorkDay(date) {
-                const diffTime = date - this.referenceDate;
-                const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-                const currentIndex = (this.referenceWorkDay - 1 + diffDays) % 6;
-                return this.workPattern[currentIndex >= 0 ? currentIndex : currentIndex + 6];
-            }
+            return { total, future };
         }
 
-        // グローバル変数
-        const workScheduleCalc = new WorkScheduleCalculator();
-        let revenueData = JSON.parse(localStorage.getItem('taxiRevenue')) || [];
-        let longCustomerData = JSON.parse(localStorage.getItem('longCustomerData')) || [];
-        let currentMonthlyTarget = parseInt(localStorage.getItem('monthlyTarget')) || 600000;
+        function render() {
+            const now = getNow();
+            const lDate = getLogicalDate();
+            const lDateStr = getDateStr(lDate);
+            const monthStr = lDateStr.substring(0, 7);
 
-        // 初期化
-        document.addEventListener('DOMContentLoaded', function() {
-            updateMonthlyInfo();
-            updateDisplay();
-            updateChart();
-            
-            // 現在時刻を設定
-            const now = new Date();
-            document.getElementById('time').value = now.toTimeString().slice(0, 5);
-            
-            // 曜日を設定
-            const days = ['日', '月', '火', '水', '木', '金', '土'];
-            document.getElementById('dayOfWeek').value = days[now.getDay()];
-            
-            // 月間目標ボタンのハイライト
-            document.querySelector(`[data-target="${currentMonthlyTarget}"]`)?.classList.add('ring-2', 'ring-blue-500');
-        });
+            // ヘッダー
+            const days = ['日','月','火','水','木','金','土'];
+            document.getElementById('clockDisplay').textContent = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+            document.getElementById('logicalDateDisplay').textContent = `${lDate.getMonth()+1}/${lDate.getDate()} (${days[lDate.getDay()]})扱い`;
 
-        // 月間情報更新
-        function updateMonthlyInfo() {
-            const now = new Date();
-            const year = now.getFullYear();
-            const month = now.getMonth();
-            
-            // 月表示更新
-            document.getElementById('currentMonth').textContent = `${year}年${month + 1}月`;
-            
-            // 営業日数計算
-            const monthlyWorkDays = workScheduleCalc.calculateMonthlyWorkDays(year, month);
-            const todayWorkDay = workScheduleCalc.getWorkDayIndex(now);
-            const remainingWorkDays = workScheduleCalc.getRemainingWorkDays(now);
-            
-            // 表示更新
-            document.getElementById('monthlyWorkDays').textContent = `${monthlyWorkDays}日`;
-            document.getElementById('todayWorkDay').textContent = `${todayWorkDay}日目`;
-            document.getElementById('remainingWorkDays').textContent = `${remainingWorkDays}日`;
-            
-            // 1日目標金額計算と表示
-            updateDailyTargets(monthlyWorkDays);
-            
-            // 今日の目標金額更新
-            const dailyTarget = Math.round(currentMonthlyTarget / monthlyWorkDays);
-            document.getElementById('targetAmount').textContent = `¥${dailyTarget.toLocaleString()}`;
-            
-            // 勤務日でない場合の警告
-            if (!workScheduleCalc.isWorkDay(now)) {
-                document.getElementById('todayWorkDay').innerHTML = '<span class="text-red-500">本日は休日</span>';
-            }
-        }
+            // シフト
+            const shift = getShiftStatus(lDate);
+            const sEl = document.getElementById('shiftStatus');
+            sEl.textContent = shift.label;
+            sEl.className = shift.isWork ? "text-3xl font-black text-indigo-600 dark:text-indigo-400" : "text-3xl font-black text-red-500 dark:text-red-400";
+            document.getElementById('nextOff').textContent = shift.isWork ? (4-shift.idx===1?"明日休":`あと${4-shift.idx}日`) : "休み";
 
-        // 1日目標金額更新
-        function updateDailyTargets(monthlyWorkDays) {
-            const targets = [600000, 700000, 800000];
-            const targetIds = ['target60k', 'target70k', 'target80k'];
-            
-            targets.forEach((target, index) => {
-                const dailyTarget = Math.round(target / monthlyWorkDays);
-                document.getElementById(targetIds[index]).textContent = `1日 ¥${dailyTarget.toLocaleString()}`;
-            });
-        }
+            // 売上計算
+            const todayRecord = STATE.revenue.find(r => r.date === lDateStr && !r.isKoshutsu);
+            const todayAmt = todayRecord ? todayRecord.amount : 0;
+            const monthTotal = STATE.revenue.filter(r => r.date.startsWith(monthStr)).reduce((sum, r) => sum + r.amount, 0);
 
-        // 月間目標設定
-        function setMonthlyTarget(target) {
-            currentMonthlyTarget = target;
-            localStorage.setItem('monthlyTarget', target);
+            // 目標計算ロジック
+            const workStats = calcWorkDays(lDate);
+            const staticDailyTarget = Math.round(STATE.target / (workStats.total || 1));
             
-            // ボタンのハイライト更新
-            document.querySelectorAll('.monthly-target-btn').forEach(btn => {
-                btn.classList.remove('ring-2', 'ring-blue-500');
-            });
-            document.querySelector(`[data-target="${target}"]`)?.classList.add('ring-2', 'ring-blue-500');
+            // 動的目標（明日以降）
+            // 残りの必要金額 = (月目標) - (今日を含めた今月の売上)
+            // これを (明日以降の営業日数) で割る
+            const remainingNeeded = STATE.target - monthTotal;
+            let dynamicDailyTarget = 0;
             
-            updateMonthlyInfo();
-            updateDisplay();
-        }
-
-        // ロング客チェックボックスの表示切り替え
-        document.getElementById('isLongCustomer').addEventListener('change', function() {
-            const details = document.getElementById('longCustomerDetails');
-            if (this.checked) {
-                details.classList.remove('hidden');
+            if (workStats.future > 0) {
+                // まだ未来の営業日がある場合
+                // ※今日ものすごい稼いでremainingがマイナスになった場合、0円にするかマイナスを表示するか？
+                // -> 0円（達成済）表示が良い
+                dynamicDailyTarget = Math.max(0, Math.round(remainingNeeded / workStats.future));
             } else {
-                details.classList.add('hidden');
+                // 月末（明日以降がない）の場合、残りは全部今日のノルマ...ではなく、達成か未達かの表示になるべき
+                dynamicDailyTarget = 0; 
             }
-        });
 
-        // MAGI分析関数（以前と同じ）
-        function performMAGiAnalysis(revenueRecord, todayTotal, target, longCustomers) {
-            const achievementRate = (todayTotal / target) * 100;
-            const currentTime = revenueRecord.time;
-            const dayOfWeek = revenueRecord.dayOfWeek;
+            // UI反映
+            document.getElementById('todayTotal').textContent = todayAmt.toLocaleString();
+            document.getElementById('todayAchievement').textContent = `${Math.round((todayAmt/staticDailyTarget)*100)}%`;
+            document.getElementById('monthlyTotal').textContent = monthTotal.toLocaleString();
+            document.getElementById('staticTarget').textContent = staticDailyTarget.toLocaleString();
+
+            // 動的ターゲットの表示制御
+            const dTargetEl = document.getElementById('dynamicTarget');
+            const dDiffEl = document.getElementById('targetDiff');
+            const dMsgEl = document.getElementById('dynamicMessage');
             
-            let analysis = {
-                logic: `現在時刻${currentTime}で${achievementRate.toFixed(1)}%達成。`,
-                moral: "安全運転を最優先に。",
-                desire: longCustomers.length > 0 ? "ロング客獲得の手応えあり。" : "ビッグゲームを狙え。",
-                future: "今日のデータは来週の同じ曜日の参考になる。",
-                critic: "効率（円/時間）も測定すべき。",
-                create: "新規顧客層開拓を提案。",
-                empathy: "常連客との関係性構築が重要。",
-                realist: "現在地から最寄りの高需要エリアを確認。",
-                care: "今日の努力を評価。",
-                rebel: "他のドライバーが避ける時間帯にチャンスあり。",
-                meta: "数値目標と顧客満足度、安全運転のバランスを考慮。",
-                conclusion: ""
-            };
+            document.getElementById('futureDaysCount').textContent = workStats.future;
 
-            // 判定結果
-            let approval = [];
-            let opposition = [];
-            let conditional = [];
-
-            if (achievementRate >= 80) {
-                approval = ["LOGIC", "DESIRE", "FUTURE"];
-                conditional = ["MORAL", "REALIST"];
-            } else if (achievementRate >= 50) {
-                approval = ["CREATE", "EMPATHY", "REBEL"];
-                conditional = ["LOGIC", "REALIST"];
+            if (workStats.future === 0) {
+                dTargetEl.textContent = "---";
+                dDiffEl.textContent = "";
+                dMsgEl.textContent = "今月最後の営業日です";
             } else {
-                approval = ["CREATE", "REBEL"];
-                conditional = ["LOGIC", "FUTURE", "REALIST"];
-            }
-
-            return {
-                results: analysis,
-                decision: {
-                    approval: approval,
-                    opposition: opposition,
-                    conditional: conditional,
-                    result: achievementRate >= 100 ? "承認" : achievementRate >= 50 ? "条件付き承認" : "再審議要求",
-                    summary: achievementRate >= 100 ? "目標達成。追加収入を狙え。" : "戦略的な営業継続を。"
+                dTargetEl.textContent = `¥${dynamicDailyTarget.toLocaleString()}`;
+                
+                const diff = dynamicDailyTarget - staticDailyTarget;
+                if (diff <= 0) {
+                    // 楽になってる（目標より低い額でOK）
+                    dTargetEl.className = "text-xl font-black stat-value text-blue-500 dark:text-blue-400";
+                    dDiffEl.textContent = `▼ ¥${Math.abs(diff).toLocaleString()}`;
+                    dDiffEl.className = "text-xs font-bold stat-value text-blue-500";
+                    dMsgEl.textContent = "順調です！明日以降の負担が減りました";
+                } else {
+                    // きつくなってる（目標より高い額が必要）
+                    dTargetEl.className = "text-xl font-black stat-value text-red-500 dark:text-orange-400";
+                    dDiffEl.textContent = `▲ ¥${diff.toLocaleString()}`;
+                    dDiffEl.className = "text-xs font-bold stat-value text-red-500 dark:text-orange-400";
+                    dMsgEl.textContent = "明日以降、少しペースアップが必要です";
                 }
-            };
-        }
-
-        // 売上記録
-        document.getElementById('revenueForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-            
-            const time = document.getElementById('time').value;
-            const amount = parseInt(document.getElementById('amount').value);
-            const memo = document.getElementById('memo').value;
-            const dayOfWeek = document.getElementById('dayOfWeek').value;
-            const date = new Date().toLocaleDateString('ja-JP');
-            const isLongCustomer = document.getElementById('isLongCustomer').checked;
-            
-            const record = {
-                id: Date.now(),
-                date: date,
-                time: time,
-                amount: amount,
-                memo: memo,
-                dayOfWeek: dayOfWeek,
-                isLongCustomer: isLongCustomer,
-                timestamp: new Date().toISOString()
-            };
-            
-            revenueData.push(record);
-            localStorage.setItem('taxiRevenue', JSON.stringify(revenueData));
-            
-            // ロング客の場合、詳細情報も保存
-            if (isLongCustomer) {
-                const longCustomerRecord = {
-                    id: record.id,
-                    date: date,
-                    time: time,
-                    dayOfWeek: dayOfWeek,
-                    amount: amount,
-                    pickupLocation: document.getElementById('pickupLocation').value,
-                    dropoffLocation: document.getElementById('dropoffLocation').value,
-                    customerType: document.getElementById('customerType').value,
-                    distance: parseInt(document.getElementById('distance').value) || 0,
-                    memo: memo
-                };
-                longCustomerData.push(longCustomerRecord);
-                localStorage.setItem('longCustomerData', JSON.stringify(longCustomerData));
             }
-            
-            // MAGI分析実行
-            const todayTotal = revenueData
-                .filter(r => r.date === date)
-                .reduce((sum, r) => sum + r.amount, 0);
-            
-            const todayLongCustomers = longCustomerData
-                .filter(r => r.date === date);
-            
-            const dailyTarget = Math.round(currentMonthlyTarget / workScheduleCalc.calculateMonthlyWorkDays(new Date().getFullYear(), new Date().getMonth()));
-            const magiAnalysis = performMAGiAnalysis(record, todayTotal, dailyTarget, todayLongCustomers);
-            displayMAGiResults(magiAnalysis);
-            
-            // フォームクリア
-            this.reset();
-            document.getElementById('longCustomerDetails').classList.add('hidden');
-            document.getElementById('isLongCustomer').checked = false;
-            
-            // 現在時刻を再設定
-            const now = new Date();
-            document.getElementById('time').value = now.toTimeString().slice(0, 5);
-            
-            // 表示更新
-            updateDisplay();
-            updateChart();
-        });
 
-        // MAGI結果表示
-        function displayMAGiResults(analysis) {
-            const resultsDiv = document.getElementById('magiResults');
-            const analysisDiv = document.getElementById('magiAnalysis');
-            
-            resultsDiv.innerHTML = `
-                <div class="space-y-3">
-                    <div class="p-3 bg-blue-50 dark:bg-blue-900 rounded-lg">
-                        <span class="font-semibold text-blue-700 dark:text-blue-300">🔵 MAGI-1 (LOGIC):</span>
-                        <span class="ml-2">${analysis.results.logic}</span>
-                    </div>
-                    <div class="p-3 bg-yellow-50 dark:bg-yellow-900 rounded-lg">
-                        <span class="font-semibold text-yellow-700 dark:text-yellow-300">🟡 MAGI-2 (MORAL):</span>
-                        <span class="ml-2">${analysis.results.moral}</span>
-                    </div>
-                    <div class="p-3 bg-red-50 dark:bg-red-900 rounded-lg">
-                        <span class="font-semibold text-red-700 dark:text-red-300">🔴 MAGI-3 (DESIRE):</span>
-                        <span class="ml-2">${analysis.results.desire}</span>
-                    </div>
-                    <div class="p-3 bg-purple-50 dark:bg-purple-900 rounded-lg">
-                        <span class="font-semibold text-purple-700 dark:text-purple-300">🟣 MAGI-4 (FUTURE):</span>
-                        <span class="ml-2">${analysis.results.future}</span>
-                    </div>
-                    <div class="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                        <span class="font-semibold text-gray-700 dark:text-gray-300">⚫ MAGI-5 (CRITIC):</span>
-                        <span class="ml-2">${analysis.results.critic}</span>
-                    </div>
-                    <div class="p-3 bg-green-50 dark:bg-green-900 rounded-lg">
-                        <span class="font-semibold text-green-700 dark:text-green-300">🟢 MAGI-6 (CREATE):</span>
-                        <span class="ml-2">${analysis.results.create}</span>
-                    </div>
-                    <div class="p-3 bg-cyan-50 dark:bg-cyan-900 rounded-lg">
-                        <span class="font-semibold text-cyan-700 dark:text-cyan-300">🩵 MAGI-7 (EMPATHY):</span>
-                        <span class="ml-2">${analysis.results.empathy}</span>
-                    </div>
-                    <div class="p-3 bg-amber-50 dark:bg-amber-900 rounded-lg">
-                        <span class="font-semibold text-amber-700 dark:text-amber-300">🟤 MAGI-8 (REALIST):</span>
-                        <span class="ml-2">${analysis.results.realist}</span>
-                    </div>
-                    <div class="p-3 bg-pink-50 dark:bg-pink-900 rounded-lg">
-                        <span class="font-semibold text-pink-700 dark:text-pink-300">🩷 MAGI-9 (CARE):</span>
-                        <span class="ml-2">${analysis.results.care}</span>
-                    </div>
-                    <div class="p-3 bg-white dark:bg-gray-600 border rounded-lg">
-                        <span class="font-semibold text-gray-700 dark:text-gray-300">⚪ MAGI-10 (REBEL):</span>
-                        <span class="ml-2">${analysis.results.rebel}</span>
-                    </div>
-                </div>
-                
-                <div class="mt-4 p-4 bg-indigo-50 dark:bg-indigo-900 rounded-lg border-2 border-indigo-200 dark:border-indigo-600">
-                    <span class="font-semibold text-indigo-700 dark:text-indigo-300">🪞 MAGI-11 (META) 俯瞰所見:</span>
-                    <span class="ml-2">${analysis.results.meta}</span>
-                </div>
-                
-                <div class="mt-4 p-4 bg-gray-100 dark:bg-gray-700 rounded-lg">
-                    <h4 class="font-bold text-gray-800 dark:text-gray-200 mb-2">【判定結果】</h4>
-                    <p><span class="font-semibold">賛成:</span> ${analysis.decision.approval.join(', ')}</p>
-                    <p><span class="font-semibold">反対:</span> ${analysis.decision.opposition.join(', ')}</p>
-                    <p><span class="font-semibold">条件付き:</span> ${analysis.decision.conditional.join(', ')}</p>
-                    
-                    <h4 class="font-bold text-gray-800 dark:text-gray-200 mt-3 mb-2">【最終決議】</h4>
-                    <p><span class="font-semibold">結果:</span> ${analysis.decision.result}</p>
-                    <p><span class="font-semibold">総評:</span> ${analysis.decision.summary}</p>
-                </div>
-            `;
-            
-            analysisDiv.classList.remove('hidden');
+            // インプット同期
+            const input = document.getElementById('meterAmount');
+            if(document.activeElement !== input && todayAmt > 0) input.value = todayAmt;
+
+            // グラフ
+            updateChart(staticDailyTarget, lDate);
+
+            // フォーム初期値
+            if(!document.getElementById('koshutsuDate').value) document.getElementById('koshutsuDate').value = getDateStr(now);
+            if(!document.getElementById('editDate').value) document.getElementById('editDate').value = lDateStr;
         }
 
-        // 表示更新
-        function updateDisplay() {
-            const today = new Date().toLocaleDateString('ja-JP');
-            const todayRevenue = revenueData
-                .filter(record => record.date === today)
-                .reduce((sum, record) => sum + record.amount, 0);
-            
-            const todayLongCustomers = longCustomerData
-                .filter(record => record.date === today);
-            
-            const monthlyWorkDays = workScheduleCalc.calculateMonthlyWorkDays(new Date().getFullYear(), new Date().getMonth());
-            const dailyTarget = Math.round(currentMonthlyTarget / monthlyWorkDays);
-            
-            document.getElementById('targetAmount').textContent = `¥${dailyTarget.toLocaleString()}`;
-            document.getElementById('currentRevenue').textContent = `¥${todayRevenue.toLocaleString()}`;
-            document.getElementById('longCustomerCount').textContent = `${todayLongCustomers.length}件`;
-            
-            const achievementRate = Math.round((todayRevenue / dailyTarget) * 100);
-            document.getElementById('achievementRate').textContent = `${achievementRate}%`;
-            
-            // 売上一覧更新
-            updateRevenueList();
-            // ロング客一覧更新
-            updateLongCustomerList();
-        }
+        // イベントハンドラ群（前バージョンと同等）
+        window.handleUpdateCurrent = () => {
+            const amt = parseInt(document.getElementById('meterAmount').value);
+            if(isNaN(amt)) return;
+            const dStr = getDateStr(getLogicalDate());
+            const idx = STATE.revenue.findIndex(r => r.date === dStr && !r.isKoshutsu);
+            if(idx >= 0) { STATE.revenue[idx].amount = amt; STATE.revenue[idx].time = new Date().toTimeString().slice(0,5); }
+            else { STATE.revenue.push({ id:Date.now(), date:dStr, time:new Date().toTimeString().slice(0,5), amount:amt, isKoshutsu:false }); }
+            saveData();
+            // Feedback
+            const btn = document.activeElement;
+            const org = btn.innerHTML;
+            btn.innerHTML = "<span class='text-2xl'>✅</span> 計算完了";
+            setTimeout(()=>btn.innerHTML=org, 800);
+        };
 
-        // 売上一覧更新
-        function updateRevenueList() {
-            const today = new Date().toLocaleDateString('ja-JP');
-            const todayRecords = revenueData.filter(record => record.date === today);
-            
-            const listContainer = document.getElementById('revenueList');
-            
-            if (todayRecords.length === 0) {
-                listContainer.innerHTML = '<p class="text-gray-500 dark:text-gray-400 text-center py-4">売上データがありません</p>';
-                return;
-            }
-            
-            listContainer.innerHTML = todayRecords
-                .sort((a, b) => a.time.localeCompare(b.time))
-                .map(record => `
-                    <div class="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg ${record.isLongCustomer ? 'border-l-4 border-purple-500' : ''}">
-                        <div>
-                            <span class="font-medium">${record.time}</span>
-                            <span class="text-gray-600 dark:text-gray-400 ml-2">(${record.dayOfWeek})</span>
-                            ${record.memo ? `<span class="text-gray-600 dark:text-gray-400 ml-2">- ${record.memo}</span>` : ''}
-                            ${record.isLongCustomer ? '<span class="ml-2 px-2 py-1 bg-purple-100 dark:bg-purple-800 text-purple-700 dark:text-purple-300 text-xs rounded">ロング客</span>' : ''}
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <span class="font-bold text-green-600 dark:text-green-400">¥${record.amount.toLocaleString()}</span>
-                            <button onclick="deleteRecord(${record.id})" class="text-red-500 hover:text-red-700 dark:text-red-400 text-sm">削除</button>
-                        </div>
-                    </div>
-                `).join('');
-        }
+        window.handleEndShift = () => {
+            const amt = parseInt(document.getElementById('meterAmount').value);
+            if(isNaN(amt)) return alert("金額を入力してください");
+            const lDate = getLogicalDate();
+            if(!confirm(`${lDate.getMonth()+1}/${lDate.getDate()}の売上を ¥${amt.toLocaleString()} で確定しますか？`)) return;
+            const idx = STATE.revenue.findIndex(r => r.date === getDateStr(lDate) && !r.isKoshutsu);
+            if(idx>=0) STATE.revenue[idx].amount = amt;
+            else STATE.revenue.push({ id:Date.now(), date:getDateStr(lDate), amount:amt, isKoshutsu:false });
+            saveData();
+            alert("確定しました");
+        };
 
-        // ロング客一覧更新
-        function updateLongCustomerList() {
-            const listContainer = document.getElementById('longCustomerList');
-            
-            if (longCustomerData.length === 0) {
-                listContainer.innerHTML = '<p class="text-gray-500 dark:text-gray-400 text-center py-4">ロング客の記録がありません</p>';
-                return;
-            }
-            
-            // 直近の10件を表示
-            const recentLongCustomers = longCustomerData
-                .sort((a, b) => new Date(b.timestamp || b.date + ' ' + b.time) - new Date(a.timestamp || a.date + ' ' + a.time))
-                .slice(0, 10);
-            
-            listContainer.innerHTML = recentLongCustomers
-                .map(record => `
-                    <div class="p-3 bg-purple-50 dark:bg-purple-900 rounded-lg border border-purple-200 dark:border-purple-700">
-                        <div class="flex justify-between items-start mb-2">
-                            <div>
-                                <span class="font-medium">${record.date} ${record.time}</span>
-                                <span class="text-purple-600 dark:text-purple-300 ml-2">(${record.dayOfWeek})</span>
-                            </div>
-                            <span class="font-bold text-purple-700 dark:text-purple-300">¥${record.amount.toLocaleString()}</span>
-                        </div>
-                        <div class="text-sm text-gray-600 dark:text-gray-400 space-y-1">
-                            <p><span class="font-medium">経路:</span> ${record.pickupLocation} → ${record.dropoffLocation}</p>
-                            <p><span class="font-medium">距離:</span> ${record.distance}km</p>
-                            <p><span class="font-medium">客層:</span> ${record.customerType}</p>
-                            ${record.memo ? `<p><span class="font-medium">メモ:</span> ${record.memo}</p>` : ''}
-                        </div>
-                    </div>
-                `).join('');
-        }
+        window.handleKoshutsuSubmit = () => {
+            const d = document.getElementById('koshutsuDate').value;
+            const a = parseInt(document.getElementById('koshutsuAmount').value);
+            if(!d || !a) return alert("不備あり");
+            STATE.revenue.push({ id:Date.now(), date:d, amount:a, isKoshutsu:true });
+            saveData();
+            alert("公出追加");
+            document.getElementById('koshutsuAmount').value='';
+        };
 
-        // レコード削除
-        function deleteRecord(id) {
-            if (confirm('この売上記録を削除しますか？')) {
-                revenueData = revenueData.filter(record => record.id !== id);
-                longCustomerData = longCustomerData.filter(record => record.id !== id);
-                localStorage.setItem('taxiRevenue', JSON.stringify(revenueData));
-                localStorage.setItem('longCustomerData', JSON.stringify(longCustomerData));
-                updateDisplay();
-                updateChart();
-            }
-        }
+        window.handlePastSubmit = () => {
+            const d = document.getElementById('editDate').value;
+            const a = parseInt(document.getElementById('editAmount').value);
+            if(!d || isNaN(a)) return;
+            if(!confirm("上書きしますか？")) return;
+            STATE.revenue = STATE.revenue.filter(r => !(r.date===d && !r.isKoshutsu));
+            if(a>0) STATE.revenue.push({ id:Date.now(), date:d, amount:a, isKoshutsu:false });
+            saveData();
+            alert("修正完了");
+        };
 
-        // 週間グラフ更新
-        function updateChart() {
+        window.adjustShift = v => { STATE.offset+=v; localStorage.setItem('taxi_offset_dynamic', STATE.offset); render(); };
+        window.setTarget = v => { STATE.target=v; saveData(); };
+        function saveData() { localStorage.setItem('taxi_rev_dynamic', JSON.stringify(STATE.revenue)); localStorage.setItem('taxi_target_dynamic', STATE.target); render(); }
+        
+        let chart;
+        function updateChart(target, lDate) {
             const ctx = document.getElementById('weeklyChart').getContext('2d');
-            
-            // 過去7日間のデータを取得
-            const last7Days = [];
-            const dailyRevenue = [];
-            
-            for (let i = 6; i >= 0; i--) {
-                const date = new Date();
-                date.setDate(date.getDate() - i);
-                const dateStr = date.toLocaleDateString('ja-JP');
-                const dayName = date.toLocaleDateString('ja-JP', { weekday: 'short' });
-                
-                last7Days.push(dayName);
-                
-                const dayRevenue = revenueData
-                    .filter(record => record.date === dateStr)
-                    .reduce((sum, record) => sum + record.amount, 0);
-                
-                dailyRevenue.push(dayRevenue);
+            const labels=[], data=[];
+            for(let i=6; i>=0; i--){
+                const d = new Date(lDate); d.setDate(d.getDate()-i);
+                labels.push(`${d.getDate()}日`);
+                data.push(STATE.revenue.filter(r=>r.date===getDateStr(d)).reduce((a,b)=>a+b.amount,0));
             }
-            
-            // 既存のチャートを破棄
-            if (window.weeklyChart) {
-                window.weeklyChart.destroy();
-            }
-            
-            const monthlyWorkDays = workScheduleCalc.calculateMonthlyWorkDays(new Date().getFullYear(), new Date().getMonth());
-            const dailyTarget = Math.round(currentMonthlyTarget / monthlyWorkDays);
-            
-            window.weeklyChart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: last7Days,
-                    datasets: [{
-                        label: '日次売上',
-                        data: dailyRevenue,
-                        borderColor: 'rgb(59, 130, 246)',
-                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                        tension: 0.1
-                    }, {
-                        label: '目標売上',
-                        data: Array(7).fill(dailyTarget),
-                        borderColor: 'rgb(239, 68, 68)',
-                        borderDash: [5, 5],
-                        fill: false
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    plugins: {
-                        legend: {
-                            position: 'top',
-                            labels: {
-                                color: html.classList.contains('dark') ? '#e0e0e0' : '#374151'
-                            }
-                        },
-                        title: {
-                            display: true,
-                            text: '週間売上推移',
-                            color: html.classList.contains('dark') ? '#e0e0e0' : '#374151'
-                        }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            ticks: {
-                                color: html.classList.contains('dark') ? '#e0e0e0' : '#374151',
-                                callback: function(value) {
-                                    return '¥' + value.toLocaleString();
-                                }
-                            },
-                            grid: {
-                                color: html.classList.contains('dark') ? '#404040' : '#e5e7eb'
-                            }
-                        },
-                        x: {
-                            ticks: {
-                                color: html.classList.contains('dark') ? '#e0e0e0' : '#374151'
-                            },
-                            grid: {
-                                color: html.classList.contains('dark') ? '#404040' : '#e5e7eb'
-                            }
-                        }
-                    }
-                }
-            });
+            if(chart) { chart.data.labels=labels; chart.data.datasets[0].data=data; chart.data.datasets[1].data=Array(7).fill(target); chart.update(); }
+            else { chart = new Chart(ctx, { type:'bar', data:{labels,datasets:[{label:'売上',data,backgroundColor:'#4f46e5',borderRadius:4},{type:'line',label:'目標',data:Array(7).fill(target),borderColor:'#ef4444',borderDash:[5,5],pointRadius:0}]}, options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false}},y:{display:false}}} }); }
         }
 
-        // データエクスポート
-        function exportData() {
-            const exportData = {
-                revenueData: revenueData,
-                longCustomerData: longCustomerData,
-                monthlyTarget: currentMonthlyTarget,
-                workSchedule: {
-                    pattern: "4勤務2休み",
-                    referenceDate: "2026年2月1日（3勤務目）",
-                    monthlyWorkDays: workScheduleCalc.calculateMonthlyWorkDays(new Date().getFullYear(), new Date().getMonth())
-                },
-                exportDate: new Date().toISOString()
-            };
-            
-            const dataStr = JSON.stringify(exportData, null, 2);
-            const dataBlob = new Blob([dataStr], {type: 'application/json'});
-            const url = URL.createObjectURL(dataBlob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = `taxi-magi-data-${new Date().toISOString().split('T')[0]}.json`;
-            link.click();
-        }
-
-        // データクリア
-        function clearData() {
-            if (confirm('すべてのデータを削除しますか？この操作は取り消せません。')) {
-                localStorage.removeItem('taxiRevenue');
-                localStorage.removeItem('longCustomerData');
-                localStorage.removeItem('monthlyTarget');
-                revenueData = [];
-                longCustomerData = [];
-                updateDisplay();
-                updateChart();
-                alert('データをクリアしました。');
-            }
-        }
+        function toggleDark(){ document.documentElement.classList.toggle('dark'); localStorage.setItem('dark', document.documentElement.classList.contains('dark')?'1':'0'); }
+        if(localStorage.getItem('dark')==='1') document.documentElement.classList.add('dark');
+        setInterval(render, 30000); render();
     </script>
 </body>
 </html>
