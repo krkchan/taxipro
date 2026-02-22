@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MAGI TAXI - Platinum Fixed</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        'dark-bg': '#000000',
+                        'dark-card': '#121212',
+                        'dark-input': '#1e1e1e',
+                        'dark-text': '#e0e0e0',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .stat-value { font-variant-numeric: tabular-nums; }
+        button { touch-action: manipulation; }
+        .blink-dot { animation: blink 2s infinite; }
+        @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
+        .slide-in { animation: slideDown 0.5s ease-out; }
+        @keyframes slideDown { from { transform: translateY(-10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        /* 編集モードのスイッチ用 */
+        .toggle-checkbox:checked {
+            right: 0;
+            border-color: #68D391;
+        }
+        .toggle-checkbox:checked + .toggle-label {
+            background-color: #68D391;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 dark:bg-dark-bg text-gray-900 dark:text-dark-text transition-colors duration-200 pb-48">
+    
+    <!-- ヘッダー（時刻・アラートエリア） -->
+    <div class="fixed top-0 left-0 right-0 bg-white/95 dark:bg-dark-card/95 backdrop-blur z-40 border-b border-gray-200 dark:border-gray-800 shadow-sm px-4 py-2">
+        <div class="flex justify-between items-center mb-1">
+            <div>
+                <p class="text-[10px] text-gray-500 dark:text-gray-400">現在時刻</p>
+                <p class="text-xl font-bold font-mono leading-none tracking-tight" id="clockDisplay">--:--</p>
+            </div>
+            <div class="text-right">
+                <p class="text-[10px] text-gray-500 dark:text-gray-400">営業日扱い</p>
+                <p class="text-sm font-bold text-indigo-600 dark:text-indigo-400" id="logicalDateDisplay">--/-- (--)</p>
+            </div>
+        </div>
+        
+        <!-- 通知エリア（縦積み） -->
+        <div id="notificationArea" class="space-y-1 mt-1">
+            <!-- ロング客アラート -->
+            <div id="longAlertBox" class="hidden bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded px-2 py-1 flex items-center gap-2 slide-in">
+                <span class="text-xs">💎</span>
+                <div class="text-[10px] font-bold text-purple-700 dark:text-purple-200" id="longAlertText"></div>
+            </div>
+            <!-- 終電アラート -->
+            <div id="trainAlertBox" class="hidden bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded px-2 py-1 flex items-center gap-2 slide-in cursor-pointer" onclick="toggleTrainModal()">
+                <span class="text-xs">🚃</span>
+                <div class="flex-1 overflow-hidden relative h-4">
+                    <div id="trainTicker" class="text-[10px] font-bold text-gray-700 dark:text-yellow-100 whitespace-nowrap"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container mx-auto px-3 pt-24 max-w-lg">
+        
+        <!-- シフト情報 & 修正ボタン -->
+        <div class="bg-white dark:bg-dark-card rounded-xl shadow-sm p-4 mb-3 border-l-4 border-indigo-500 flex justify-between items-center">
+            <div>
+                <div class="flex items-center gap-2 mb-1">
+                    <h2 class="text-xs font-bold text-gray-400">現在のシフト</h2>
+                    <!-- ズレ修正 -->
+                    <div class="flex bg-gray-100 dark:bg-gray-800 rounded px-1 gap-1">
+                        <button onclick="adjustShift(-1)" class="w-6 h-6 flex items-center justify-center bg-white dark:bg-dark-input rounded shadow text-gray-600 dark:text-gray-300 font-bold active:scale-95 text-[10px]">◀</button>
+                        <button onclick="adjustShift(1)" class="w-6 h-6 flex items-center justify-center bg-white dark:bg-dark-input rounded shadow text-gray-600 dark:text-gray-300 font-bold active:scale-95 text-[10px]">▶</button>
+                    </div>
+                </div>
+                <div class="flex items-baseline gap-2">
+                    <span id="shiftStatus" class="text-2xl font-black text-indigo-600 dark:text-indigo-400">--</span>
+                    <span id="nextOff" class="text-xs font-bold text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">--</span>
+                </div>
+            </div>
+            <button onclick="toggleTrainModal()" class="bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-xs px-3 py-2 rounded-lg font-bold text-gray-600 dark:text-gray-300 transition">
+                🚃 終電時刻表
+            </button>
+        </div>
+
+        <!-- 売上 & W達成率 -->
+        <div class="bg-white dark:bg-dark-card rounded-xl shadow-lg p-4 mb-4 border-l-4 border-green-500">
+            <div class="flex justify-between items-center mb-1">
+                <h2 class="text-xs font-bold text-gray-500 uppercase flex items-center gap-1">
+                    <span class="w-2 h-2 rounded-full bg-green-500 blink-dot"></span> 現在の売上
+                </h2>
+            </div>
+            <div class="flex items-baseline gap-2 mb-3 border-b border-gray-100 dark:border-gray-800 pb-3">
+                <p class="text-4xl font-black text-gray-900 dark:text-white stat-value tracking-tighter" id="todayTotal">0</p>
+                <span class="text-xs font-bold text-gray-400">円</span>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4 mb-3">
+                <div class="text-center border-r border-gray-100 dark:border-gray-800">
+                    <p class="text-[10px] text-gray-400 mb-1">基本ノルマ (<span id="staticTargetMini">0</span>)</p>
+                    <p class="text-xl font-bold text-gray-400 stat-value"><span id="staticRate">0</span>%</p>
+                </div>
+                <div class="text-center relative">
+                    <p class="text-[10px] text-gray-500 dark:text-gray-400 font-bold mb-1">修正ノルマ (<span id="dynamicTargetMini">0</span>)</p>
+                    <p class="text-2xl font-black text-blue-600 dark:text-blue-400 stat-value"><span id="dynamicRate">0</span>%</p>
+                    <span class="absolute -top-1 -right-1 flex h-2 w-2">
+                      <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                      <span class="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
+                    </span>
+                </div>
+            </div>
+
+            <div class="bg-gray-50 dark:bg-gray-800/60 rounded-lg p-2.5">
+                <div class="flex justify-between items-center mb-1">
+                    <span class="text-xs font-bold text-gray-600 dark:text-gray-400">明日以降の必要平均</span>
+                    <span class="text-[10px] text-gray-400">残り <span id="futureDaysCount">0</span> 日</span>
+                </div>
+                <div class="flex justify-between items-end">
+                    <p class="text-xl font-black stat-value transition-colors duration-300" id="dynamicTarget">¥0</p>
+                    <p class="text-xs font-bold stat-value" id="targetDiff">±0</p>
+                </div>
+                <p class="text-[10px] text-right mt-1 text-gray-400" id="dynamicMessage">--</p>
+            </div>
+        </div>
+
+        <!-- メイン入力エリア -->
+        <div class="bg-white dark:bg-dark-card rounded-xl shadow-lg p-4 mb-6">
+            <div class="mb-3">
+                <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-2">現在のメーター合計</label>
+                <div class="relative">
+                    <input type="number" id="meterAmount" inputmode="numeric" class="w-full pl-4 pr-4 py-3 text-2xl font-bold bg-gray-100 dark:bg-dark-input border-2 border-transparent focus:border-blue-500 dark:text-white rounded-xl outline-none placeholder-gray-400 text-center" placeholder="0">
+                </div>
+            </div>
+            <div class="grid grid-cols-1 gap-3">
+                <button onclick="handleUpdateCurrent()" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl shadow-lg active:scale-[0.98] transition-all flex items-center justify-center gap-3">
+                    <span class="text-xl">🔄</span>
+                    <div class="text-left leading-tight">
+                        <div class="text-sm font-bold">現在までの売上を更新</div>
+                    </div>
+                </button>
+                <button onclick="handleEndShift()" class="w-full bg-gray-800 dark:bg-red-900/40 hover:bg-gray-900 dark:hover:bg-red-900/60 border border-gray-200 dark:border-red-900 text-white dark:text-red-200 py-3 rounded-xl active:scale-[0.98] transition-all flex items-center justify-center gap-3">
+                    <span class="text-xl">🛑</span>
+                    <div class="text-left leading-tight">
+                        <div class="text-sm font-bold">業務終了（確定）</div>
+                    </div>
+                </button>
+            </div>
+        </div>
+
+        <!-- ロング客メモ（稼ぎ予報） -->
+        <details class="bg-white dark:bg-dark-card rounded-xl shadow-sm mb-6 border-l-4 border-purple-400">
+            <summary class="p-4 flex justify-between items-center cursor-pointer select-none">
+                <h3 class="text-xs font-bold text-purple-600 dark:text-purple-400 flex items-center gap-1">
+                    <span>💎 ロング/優良客メモ</span>
+                </h3>
+                <span class="text-gray-400 text-xs">▼</span>
+            </summary>
+            <div class="p-4 border-t border-gray-100 dark:border-gray-800">
+                <p class="text-[10px] text-gray-500 mb-3">
+                    「いつ」「どこで」拾った客か登録しておくと、毎週その時間が近づいた時に画面上部でこっそり通知します。
+                </p>
+                <!-- 入力フォーム -->
+                <div class="grid grid-cols-2 gap-2 mb-2">
+                    <select id="longDay" class="p-2 text-xs rounded border dark:border-gray-700 dark:bg-dark-input dark:text-white">
+                        <option value="1">月曜日</option>
+                        <option value="2">火曜日</option>
+                        <option value="3">水曜日</option>
+                        <option value="4">木曜日</option>
+                        <option value="5">金曜日</option>
+                        <option value="6">土曜日</option>
+                        <option value="0">日曜日</option>
+                    </select>
+                    <input type="time" id="longTime" class="p-2 text-xs rounded border dark:border-gray-700 dark:bg-dark-input dark:text-white">
+                </div>
+                <div class="grid grid-cols-2 gap-2 mb-2">
+                    <input type="text" id="longFrom" placeholder="乗車地 (例: 藤沢駅)" class="p-2 text-xs rounded border dark:border-gray-700 dark:bg-dark-input dark:text-white">
+                    <input type="text" id="longTo" placeholder="行先 (例: 六本木)" class="p-2 text-xs rounded border dark:border-gray-700 dark:bg-dark-input dark:text-white">
+                </div>
+                <button onclick="addLongLog()" class="w-full bg-purple-600 text-white py-2 rounded text-xs font-bold mb-4">登録する</button>
+
+                <!-- リスト -->
+                <div id="longLogList" class="space-y-2 max-h-40 overflow-y-auto">
+                    <!-- JS生成 -->
+                </div>
+            </div>
+        </details>
+        
+        <!-- フッター上部: 月間売上 & 編集ボタン -->
+        <div class="fixed bottom-[55px] left-0 right-0 bg-gray-900 dark:bg-gray-800 text-white p-2 px-4 z-30 border-t border-gray-700 shadow-lg flex justify-between items-center">
+            <div>
+                <p class="text-[10px] text-gray-400">今月の売上合計</p>
+                <p class="text-xl font-bold stat-value" id="monthlyTotalFooter">¥0</p>
+            </div>
+            <button onclick="toggleHistoryModal()" class="bg-gray-700 hover:bg-gray-600 border border-gray-600 text-white px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-1 transition active:scale-95">
+                📝 履歴/修正
+            </button>
+        </div>
+
+        <!-- フッター: 目標ボタン -->
+        <div class="fixed bottom-0 left-0 right-0 bg-white dark:bg-dark-card border-t dark:border-gray-800 p-2 z-30 pb-safe h-[55px]">
+            <div class="container mx-auto max-w-lg">
+                <div class="flex justify-between items-center gap-1 overflow-x-auto no-scrollbar">
+                    <button onclick="setTarget(600000)" class="target-btn flex-1 min-w-[50px] py-2 text-[10px] font-bold rounded border dark:border-gray-700 dark:text-gray-300 transition-colors">60万</button>
+                    <button onclick="setTarget(700000)" class="target-btn flex-1 min-w-[50px] py-2 text-[10px] font-bold rounded border dark:border-gray-700 dark:text-gray-300 transition-colors">70万</button>
+                    <button onclick="setTarget(800000)" class="target-btn flex-1 min-w-[50px] py-2 text-[10px] font-bold rounded border dark:border-gray-700 dark:text-gray-300 transition-colors">80万</button>
+                    <button onclick="setTarget(900000)" class="target-btn flex-1 min-w-[50px] py-2 text-[10px] font-bold rounded border dark:border-gray-700 dark:text-gray-300 transition-colors">90万</button>
+                    <button onclick="setTarget(1000000)" class="target-btn flex-1 min-w-[50px] py-2 text-[10px] font-bold rounded border dark:border-gray-700 dark:text-gray-300 transition-colors">100万</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 終電モーダル（編集機能付き） -->
+    <div id="trainModal" class="fixed inset-0 bg-black/80 z-50 hidden flex items-center justify-center p-4 backdrop-blur-sm" onclick="toggleTrainModal()">
+        <div class="bg-white dark:bg-dark-card w-full max-w-sm rounded-xl overflow-hidden shadow-2xl max-h-[85vh] flex flex-col" onclick="event.stopPropagation()">
+            <div class="p-4 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center bg-gray-50 dark:bg-gray-800">
+                <h3 class="font-bold text-gray-700 dark:text-gray-200">🚃 終電設定</h3>
+                <div class="flex items-center gap-3">
+                    <label class="flex items-center gap-1 cursor-pointer">
+                        <input type="checkbox" id="trainEditMode" onchange="toggleTrainEditMode()" class="hidden peer">
+                        <span class="text-xs text-gray-500 peer-checked:text-blue-500 font-bold">編集</span>
+                        <div class="w-8 h-4 bg-gray-300 rounded-full peer-checked:bg-blue-500 relative transition-colors"><div class="absolute left-0.5 top-0.5 bg-white w-3 h-3 rounded-full transition-transform peer-checked:translate-x-4"></div></div>
+                    </label>
+                    <button onclick="toggleTrainModal()" class="text-2xl leading-none text-gray-500">&times;</button>
+                </div>
+            </div>
+            <div class="flex-1 overflow-y-auto p-4 space-y-2 text-xs" id="trainListContainer"></div>
+            <div class="p-3 border-t border-gray-100 dark:border-gray-800 text-center bg-gray-50 dark:bg-dark-card">
+                <button onclick="toggleTrainModal()" class="w-full bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 py-2 rounded-lg font-bold text-sm">閉じる</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 履歴/修正モーダル -->
+    <div id="historyModal" class="fixed inset-0 bg-black/80 z-50 hidden flex items-center justify-center p-4 backdrop-blur-sm" onclick="toggleHistoryModal()">
+        <div class="bg-white dark:bg-dark-card w-full max-w-sm rounded-xl overflow-hidden shadow-2xl max-h-[80vh] flex flex-col" onclick="event.stopPropagation()">
+            <div class="p-4 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center bg-gray-50 dark:bg-gray-800">
+                <h3 class="font-bold text-gray-700 dark:text-gray-200">📝 今月の履歴修正</h3>
+                <button onclick="toggleHistoryModal()" class="text-2xl leading-none text-gray-500">&times;</button>
+            </div>
+            <div class="flex-1 overflow-y-auto p-4 space-y-2" id="historyListContainer">
+                <!-- JS生成 -->
+            </div>
+            <div class="p-3 border-t border-gray-100 dark:border-gray-800 text-center bg-gray-50 dark:bg-dark-card">
+                <button onclick="toggleHistoryModal()" class="w-full bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 py-2 rounded-lg font-bold text-sm">閉じる</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const CONFIG = {
+            anchorDate: new Date(2026, 1, 8),
+            anchorIndex: 3,
+            pattern: [1, 1, 1, 1, 0, 0],
+            cutoffHour: 6
+        };
+
+        const DEFAULT_TRAINS = [
+            { id: 1, station: "藤沢", line: "東海道(小田原)", time: "00:24" },
+            { id: 2, station: "藤沢", line: "東海道(平塚終)", time: "00:49" },
+            { id: 3, station: "藤沢", line: "小田急(江ノ島)", time: "00:42" },
+            { id: 4, station: "藤沢", line: "小田急(相模)", time: "00:19" },
+            { id: 5, station: "湘南台", line: "小田急(藤沢)", time: "00:54" },
+            { id: 6, station: "湘南台", line: "相鉄(横浜)", time: "00:26" },
+            { id: 7, station: "辻堂", line: "東海道(平塚)", time: "00:52" },
+            { id: 8, station: "茅ヶ崎", line: "東海道(小田原)", time: "00:32" }
+        ];
+
+        let STATE = {
+            revenue: JSON.parse(localStorage.getItem('taxi_rev_platinum') || '[]'),
+            target: parseInt(localStorage.getItem('taxi_target_platinum') || '600000'),
+            offset: parseInt(localStorage.getItem('taxi_offset_platinum') || '0'),
+            trains: JSON.parse(localStorage.getItem('taxi_trains_platinum') || JSON.stringify(DEFAULT_TRAINS)),
+            longLogs: JSON.parse(localStorage.getItem('taxi_longlogs') || '[]')
+        };
+
+        // --- Basic Logic ---
+        function getNow() { return new Date(); }
+        function getLogicalDate() {
+            const now = getNow();
+            if (now.getHours() < CONFIG.cutoffHour) {
+                const prev = new Date(now);
+                prev.setDate(now.getDate() - 1);
+                return prev;
+            }
+            return now;
+        }
+        function getDateStr(d) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+        
+        function getShiftStatus(logicalDate) {
+            const t = new Date(logicalDate.getFullYear(), logicalDate.getMonth(), logicalDate.getDate());
+            const a = new Date(CONFIG.anchorDate.getFullYear(), CONFIG.anchorDate.getMonth(), CONFIG.anchorDate.getDate());
+            let idx = (CONFIG.anchorIndex + Math.floor((t-a)/(86400000)) + STATE.offset) % 6;
+            if (idx < 0) idx += 6;
+            const isWork = CONFIG.pattern[idx] === 1;
+            return { isWork, idx, label: isWork ? `${idx+1}日目` : `休日(${idx-3}日目)` };
+        }
+
+        function calcWorkDays(logicalDate) {
+            const y = logicalDate.getFullYear(), m = logicalDate.getMonth();
+            const lastDay = new Date(y, m + 1, 0).getDate();
+            let total = 0, future = 0;
+            for(let d=1; d<=lastDay; d++) {
+                const chk = new Date(y, m, d);
+                const isW = getShiftStatus(chk).isWork || STATE.revenue.some(r=>r.date===getDateStr(chk)&&r.isKoshutsu);
+                if(isW) { total++; if(d > logicalDate.getDate()) future++; }
+            }
+            return { total, future };
+        }
+
+        // --- Render Main ---
+        function render() {
+            const now = getNow();
+            const lDate = getLogicalDate();
+            const lDateStr = getDateStr(lDate);
+            const monthStr = lDateStr.substring(0, 7);
+
+            // Header
+            const days = ['日','月','火','水','木','金','土'];
+            document.getElementById('clockDisplay').textContent = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+            document.getElementById('logicalDateDisplay').textContent = `${lDate.getMonth()+1}/${lDate.getDate()} (${days[lDate.getDay()]})扱い`;
+
+            // Shift
+            const shift = getShiftStatus(lDate);
+            document.getElementById('shiftStatus').textContent = shift.label;
+            document.getElementById('shiftStatus').className = shift.isWork ? "text-2xl font-black text-indigo-600 dark:text-indigo-400" : "text-2xl font-black text-red-500 dark:text-red-400";
+            document.getElementById('nextOff').textContent = shift.isWork ? (4-shift.idx===1?"明日休":`あと${4-shift.idx}日`) : "休み";
+
+            // Revenue
+            const todayRecord = STATE.revenue.find(r => r.date === lDateStr && !r.isKoshutsu);
+            const todayAmt = todayRecord ? todayRecord.amount : 0;
+            const monthTotal = STATE.revenue.filter(r => r.date.startsWith(monthStr)).reduce((sum, r) => sum + r.amount, 0);
+            
+            // Targets
+            const workStats = calcWorkDays(lDate);
+            const staticDailyTarget = Math.round(STATE.target / (workStats.total || 1));
+            const remainingNeeded = STATE.target - monthTotal;
+            const dynamicDailyTarget = workStats.future > 0 ? Math.max(0, Math.round(remainingNeeded / workStats.future)) : 0;
+
+            // UI Text
+            document.getElementById('todayTotal').textContent = todayAmt.toLocaleString();
+            document.getElementById('monthlyTotalFooter').textContent = `¥${monthTotal.toLocaleString()}`;
+            document.getElementById('staticTargetMini').textContent = `¥${staticDailyTarget.toLocaleString()}`;
+            document.getElementById('staticRate').textContent = staticDailyTarget > 0 ? Math.round((todayAmt/staticDailyTarget)*100) : 0;
+            
+            // Dynamic Rate
+            const yesterdayTotal = monthTotal - todayAmt; 
+            const daysLeftIncludingToday = workStats.future + 1;
+            const todayDynamicTarget = Math.round((STATE.target - yesterdayTotal) / daysLeftIncludingToday);
+            document.getElementById('dynamicTargetMini').textContent = `¥${todayDynamicTarget.toLocaleString()}`;
+            document.getElementById('dynamicRate').textContent = todayDynamicTarget > 0 ? Math.round((todayAmt/todayDynamicTarget)*100) : 100;
+
+            // Future Info
+            document.getElementById('futureDaysCount').textContent = workStats.future;
+            const dTargetEl = document.getElementById('dynamicTarget');
+            const dDiffEl = document.getElementById('targetDiff');
+            if (workStats.future === 0) {
+                dTargetEl.textContent = "---";
+                dDiffEl.textContent = "";
+                document.getElementById('dynamicMessage').textContent = "今月最終営業日";
+            } else {
+                dTargetEl.textContent = `¥${dynamicDailyTarget.toLocaleString()}`;
+                const diff = dynamicDailyTarget - staticDailyTarget;
+                if (diff <= 0) {
+                    dTargetEl.className = "text-xl font-black stat-value text-blue-500 dark:text-blue-400";
+                    dDiffEl.textContent = `▼${Math.abs(diff).toLocaleString()}`;
+                    dDiffEl.className = "text-xs font-bold stat-value text-blue-500";
+                    document.getElementById('dynamicMessage').textContent = "順調です";
+                } else {
+                    dTargetEl.className = "text-xl font-black stat-value text-red-500 dark:text-orange-400";
+                    dDiffEl.textContent = `▲${diff.toLocaleString()}`;
+                    dDiffEl.className = "text-xs font-bold stat-value text-red-500 dark:text-orange-400";
+                    document.getElementById('dynamicMessage').textContent = "ペースアップ";
+                }
+            }
+
+            // Sync Input
+            const input = document.getElementById('meterAmount');
+            if(document.activeElement !== input && todayAmt > 0) input.value = todayAmt;
+
+            // Footer Buttons
+            document.querySelectorAll('.target-btn').forEach(btn => {
+                const v = parseInt(btn.innerText.replace('万', '0000'));
+                if(v === STATE.target) {
+                    btn.classList.add('bg-blue-600', 'text-white', 'border-blue-600');
+                    btn.classList.remove('dark:border-gray-700', 'dark:text-gray-300');
+                } else {
+                    btn.classList.remove('bg-blue-600', 'text-white', 'border-blue-600');
+                    btn.classList.add('dark:border-gray-700', 'dark:text-gray-300');
+                }
+            });
+
+            checkAlerts(now, lDate);
+            renderLongLogs();
+        }
+
+        // --- Alerts Logic ---
+        function checkAlerts(now, lDate) {
+            // 1. Train Alert
+            let currentMins = now.getHours() * 60 + now.getMinutes();
+            if (now.getHours() < 4) currentMins += 1440;
+            const upcomingTrains = STATE.trains.map(t => {
+                const [h, m] = t.time.split(':').map(Number);
+                let tm = h * 60 + m;
+                if(h < 4) tm += 1440; // DB側が24時制(00:xx)の場合の補正
+                return { ...t, diff: tm - currentMins };
+            }).filter(t => t.diff >= 10 && t.diff <= 90).sort((a,b) => a.diff - b.diff);
+
+            const tBox = document.getElementById('trainAlertBox');
+            if (upcomingTrains.length > 0) {
+                tBox.classList.remove('hidden');
+                document.getElementById('trainTicker').innerHTML = `<div class="animate-marquee inline-block">${upcomingTrains.slice(0,3).map(t=>`<span class="mr-3">${t.station} <span class="text-red-500">${t.time}</span> (${t.diff}分後)</span>`).join('')}</div>`;
+            } else {
+                tBox.classList.add('hidden');
+            }
+
+            // 2. Long Log Alert
+            const dayOfWeek = now.getDay(); 
+            const lBox = document.getElementById('longAlertBox');
+            
+            const upcomingLogs = STATE.longLogs.filter(l => {
+                if(parseInt(l.day) !== dayOfWeek) return false;
+                const [h, m] = l.time.split(':').map(Number);
+                let lm = h * 60 + m;
+                if(h < 4) lm += 1440;
+                const diff = lm - currentMins;
+                return diff >= 0 && diff <= 45; // 45分前から通知
+            });
+
+            if(upcomingLogs.length > 0) {
+                lBox.classList.remove('hidden');
+                const log = upcomingLogs[0];
+                document.getElementById('longAlertText').textContent = `もうすぐ：${log.to}行き (${log.from})`;
+            } else {
+                lBox.classList.add('hidden');
+            }
+        }
+
+        // --- Long Log Logic ---
+        function addLongLog() {
+            const day = document.getElementById('longDay').value;
+            const time = document.getElementById('longTime').value;
+            const from = document.getElementById('longFrom').value;
+            const to = document.getElementById('longTo').value;
+            if(!time || !from || !to) return alert("全ての項目を入力してください");
+
+            STATE.longLogs.push({ id: Date.now(), day, time, from, to });
+            STATE.longLogs.sort((a,b) => a.time.localeCompare(b.time));
+            saveData();
+            document.getElementById('longFrom').value = '';
+            document.getElementById('longTo').value = '';
+            renderLongLogs();
+        }
+
+        function deleteLongLog(id) {
+            if(!confirm("削除しますか？")) return;
+            STATE.longLogs = STATE.longLogs.filter(l => l.id !== id);
+            saveData();
+            renderLongLogs();
+        }
+
+        function renderLongLogs() {
+            const list = document.getElementById('longLogList');
+            const dayNames = ['日','月','火','水','木','金','土'];
+            list.innerHTML = STATE.longLogs.map(l => `
+                <div class="flex justify-between items-center bg-gray-50 dark:bg-gray-800 p-2 rounded border border-gray-100 dark:border-gray-700">
+                    <div>
+                        <div class="text-xs font-bold text-purple-600 dark:text-purple-400">
+                            ${dayNames[l.day]} ${l.time}
+                        </div>
+                        <div class="text-[10px] text-gray-600 dark:text-gray-300">
+                            ${l.from} ➡ ${l.to}
+                        </div>
+                    </div>
+                    <button onclick="deleteLongLog(${l.id})" class="text-red-400 text-xs px-2">🗑️</button>
+                </div>
+            `).join('');
+        }
+
+        // --- History / Edit Modal Logic ---
+        function toggleHistoryModal() {
+            const m = document.getElementById('historyModal');
+            m.classList.toggle('hidden');
+            if(!m.classList.contains('hidden')) renderHistoryList();
+        }
+
+        function renderHistoryList() {
+            const lDate = getLogicalDate();
+            const monthStr = getDateStr(lDate).substring(0, 7);
+            const monthlyData = STATE.revenue.filter(r => r.date.startsWith(monthStr)).sort((a,b) => a.date.localeCompare(b.date));
+            
+            const container = document.getElementById('historyListContainer');
+            if(monthlyData.length === 0) {
+                container.innerHTML = '<p class="text-center text-xs text-gray-500 mt-4">データがありません</p>';
+                return;
+            }
+
+            container.innerHTML = monthlyData.map(r => {
+                const d = new Date(r.date);
+                const dayName = ['日','月','火','水','木','金','土'][d.getDay()];
+                return `
+                <div class="flex justify-between items-center bg-gray-50 dark:bg-gray-800 p-3 rounded">
+                    <div>
+                        <div class="text-xs text-gray-500">${r.date.slice(5)} (${dayName}) ${r.isKoshutsu?'<span class="text-orange-500 font-bold">公出</span>':''}</div>
+                        <div class="font-bold dark:text-white">¥${r.amount.toLocaleString()}</div>
+                    </div>
+                    <button onclick="editHistoryItem(${r.id}, ${r.amount})" class="bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-200 px-3 py-1 rounded text-xs font-bold">修正</button>
+                </div>
+            `}).join('');
+        }
+
+        function editHistoryItem(id, oldVal) {
+            const newVal = prompt("修正後の金額を入力してください", oldVal);
+            if(newVal === null) return;
+            const amt = parseInt(newVal);
+            if(isNaN(amt)) return alert("数値を入力してください");
+            
+            const idx = STATE.revenue.findIndex(r => r.id === id);
+            if(idx >= 0) {
+                STATE.revenue[idx].amount = amt;
+                saveData();
+                renderHistoryList();
+            }
+        }
+
+        // --- Train Edit Logic ---
+        let isTrainEditMode = false;
+        function toggleTrainModal() {
+            document.getElementById('trainModal').classList.toggle('hidden');
+            renderTrainList();
+        }
+        function toggleTrainEditMode() {
+            isTrainEditMode = document.getElementById('trainEditMode').checked;
+            renderTrainList();
+        }
+        function renderTrainList() {
+            const c = document.getElementById('trainListContainer');
+            c.innerHTML = STATE.trains.map((t, index) => {
+                if(isTrainEditMode) {
+                    return `
+                    <div class="bg-gray-50 dark:bg-gray-800 p-2 rounded mb-2 border border-blue-200 dark:border-blue-900">
+                        <div class="flex gap-2 mb-1">
+                            <input type="text" value="${t.station}" onchange="updateTrain(${index}, 'station', this.value)" class="w-1/3 p-1 text-xs border rounded bg-white dark:bg-dark-input dark:text-white">
+                            <input type="time" value="${t.time.replace('24:','00:').replace('25:','01:')}" onchange="updateTrain(${index}, 'time', this.value)" class="w-1/3 p-1 text-xs border rounded bg-white dark:bg-dark-input dark:text-white">
+                        </div>
+                        <input type="text" value="${t.line}" onchange="updateTrain(${index}, 'line', this.value)" class="w-full p-1 text-xs border rounded bg-white dark:bg-dark-input dark:text-white">
+                    </div>`;
+                } else {
+                    return `
+                    <div class="flex justify-between items-center py-2 border-b border-gray-100 dark:border-gray-800 last:border-0">
+                        <div>
+                            <span class="font-bold text-gray-700 dark:text-gray-200 mr-2">${t.station}</span>
+                            <span class="text-gray-400 text-[10px]">${t.line}</span>
+                        </div>
+                        <span class="font-mono font-bold text-indigo-600 dark:text-indigo-400">${t.time}</span>
+                    </div>`;
+                }
+            }).join('');
+        }
+        function updateTrain(index, field, value) {
+            STATE.trains[index][field] = value;
+            saveData();
+        }
+
+        // --- Global Actions ---
+        window.handleUpdateCurrent = () => {
+            const amt = parseInt(document.getElementById('meterAmount').value);
+            if(isNaN(amt)) return;
+            const dStr = getDateStr(getLogicalDate());
+            const idx = STATE.revenue.findIndex(r => r.date === dStr && !r.isKoshutsu);
+            if(idx >= 0) { STATE.revenue[idx].amount = amt; }
+            else { STATE.revenue.push({ id:Date.now(), date:dStr, amount:amt, isKoshutsu:false }); }
+            saveData();
+            const btn = document.activeElement; const org=btn.innerHTML; btn.innerHTML="✅"; setTimeout(()=>btn.innerHTML=org,500);
+        };
+        window.handleEndShift = () => {
+            const amt = parseInt(document.getElementById('meterAmount').value);
+            if(isNaN(amt)) return alert("金額を入力してください");
+            const lDate = getLogicalDate();
+            if(!confirm(`【業務終了】\n${lDate.getMonth()+1}/${lDate.getDate()}の売上: ¥${amt.toLocaleString()}\n確定しますか？`)) return;
+            const idx = STATE.revenue.findIndex(r => r.date === getDateStr(lDate) && !r.isKoshutsu);
+            if(idx>=0) STATE.revenue[idx].amount = amt; else STATE.revenue.push({ id:Date.now(), date:getDateStr(lDate), amount:amt, isKoshutsu:false });
+            saveData(); alert("記録しました");
+        };
+        window.adjustShift = v => { STATE.offset+=v; localStorage.setItem('taxi_offset_platinum', STATE.offset); render(); };
+        window.setTarget = v => { STATE.target=v; saveData(); };
+        
+        function saveData() { 
+            localStorage.setItem('taxi_rev_platinum', JSON.stringify(STATE.revenue)); 
+            localStorage.setItem('taxi_target_platinum', STATE.target); 
+            localStorage.setItem('taxi_trains_platinum', JSON.stringify(STATE.trains));
+            localStorage.setItem('taxi_longlogs', JSON.stringify(STATE.longLogs));
+            render(); 
+        }
+
+        if(localStorage.getItem('dark')==='1') document.documentElement.classList.add('dark');
+        setInterval(render, 30000);
+        render(); // Init
+    </script>
+</body>
+</html>
