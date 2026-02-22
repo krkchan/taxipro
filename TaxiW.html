@@ -1,9 +1,10 @@
+
 <!DOCTYPE html>
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MAGI TAXI - Platinum Fixed</title>
+    <title>MAGI TAXI - Diamond</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
@@ -12,10 +13,10 @@
             theme: {
                 extend: {
                     colors: {
-                        'dark-bg': '#000000',
-                        'dark-card': '#121212',
-                        'dark-input': '#1e1e1e',
-                        'dark-text': '#e0e0e0',
+                        'dark-bg': '#050505',
+                        'dark-card': '#141414',
+                        'dark-input': '#1f1f1f',
+                        'dark-text': '#e5e5e5',
                     }
                 }
             }
@@ -31,32 +32,35 @@
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         
-        /* 編集モードのスイッチ用 */
-        .toggle-checkbox:checked {
-            right: 0;
-            border-color: #68D391;
-        }
-        .toggle-checkbox:checked + .toggle-label {
-            background-color: #68D391;
-        }
+        /* カスタムスイッチ */
+        .toggle-checkbox:checked { right: 0; border-color: #68D391; }
+        .toggle-checkbox:checked + .toggle-label { background-color: #68D391; }
     </style>
 </head>
 <body class="bg-gray-100 dark:bg-dark-bg text-gray-900 dark:text-dark-text transition-colors duration-200 pb-48">
     
-    <!-- ヘッダー（時刻・アラートエリア） -->
+    <!-- ヘッダー -->
     <div class="fixed top-0 left-0 right-0 bg-white/95 dark:bg-dark-card/95 backdrop-blur z-40 border-b border-gray-200 dark:border-gray-800 shadow-sm px-4 py-2">
         <div class="flex justify-between items-center mb-1">
-            <div>
-                <p class="text-[10px] text-gray-500 dark:text-gray-400">現在時刻</p>
-                <p class="text-xl font-bold font-mono leading-none tracking-tight" id="clockDisplay">--:--</p>
+            <div class="flex items-center gap-3">
+                <div>
+                    <p class="text-[10px] text-gray-500 dark:text-gray-400">現在時刻</p>
+                    <p class="text-xl font-bold font-mono leading-none tracking-tight" id="clockDisplay">--:--</p>
+                </div>
             </div>
-            <div class="text-right">
-                <p class="text-[10px] text-gray-500 dark:text-gray-400">営業日扱い</p>
-                <p class="text-sm font-bold text-indigo-600 dark:text-indigo-400" id="logicalDateDisplay">--/-- (--)</p>
+            <div class="flex items-center gap-3">
+                <div class="text-right">
+                    <p class="text-[10px] text-gray-500 dark:text-gray-400">営業日扱い</p>
+                    <p class="text-sm font-bold text-indigo-600 dark:text-indigo-400" id="logicalDateDisplay">--/-- (--)</p>
+                </div>
+                <!-- ダークモード切替ボタン -->
+                <button onclick="toggleDarkMode()" class="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-lg shadow-sm border border-gray-200 dark:border-gray-700 transition">
+                    <span id="themeIcon">🌙</span>
+                </button>
             </div>
         </div>
         
-        <!-- 通知エリア（縦積み） -->
+        <!-- 通知エリア -->
         <div id="notificationArea" class="space-y-1 mt-1">
             <!-- ロング客アラート -->
             <div id="longAlertBox" class="hidden bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded px-2 py-1 flex items-center gap-2 slide-in">
@@ -75,7 +79,7 @@
 
     <div class="container mx-auto px-3 pt-24 max-w-lg">
         
-        <!-- シフト情報 & 修正ボタン -->
+        <!-- シフト情報 -->
         <div class="bg-white dark:bg-dark-card rounded-xl shadow-sm p-4 mb-3 border-l-4 border-indigo-500 flex justify-between items-center">
             <div>
                 <div class="flex items-center gap-2 mb-1">
@@ -136,7 +140,7 @@
             </div>
         </div>
 
-        <!-- メイン入力エリア -->
+        <!-- 入力エリア -->
         <div class="bg-white dark:bg-dark-card rounded-xl shadow-lg p-4 mb-6">
             <div class="mb-3">
                 <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-2">現在のメーター合計</label>
@@ -172,7 +176,6 @@
                 <p class="text-[10px] text-gray-500 mb-3">
                     「いつ」「どこで」拾った客か登録しておくと、毎週その時間が近づいた時に画面上部でこっそり通知します。
                 </p>
-                <!-- 入力フォーム -->
                 <div class="grid grid-cols-2 gap-2 mb-2">
                     <select id="longDay" class="p-2 text-xs rounded border dark:border-gray-700 dark:bg-dark-input dark:text-white">
                         <option value="1">月曜日</option>
@@ -191,10 +194,7 @@
                 </div>
                 <button onclick="addLongLog()" class="w-full bg-purple-600 text-white py-2 rounded text-xs font-bold mb-4">登録する</button>
 
-                <!-- リスト -->
-                <div id="longLogList" class="space-y-2 max-h-40 overflow-y-auto">
-                    <!-- JS生成 -->
-                </div>
+                <div id="longLogList" class="space-y-2 max-h-40 overflow-y-auto"></div>
             </div>
         </details>
         
@@ -244,16 +244,18 @@
         </div>
     </div>
 
-    <!-- 履歴/修正モーダル -->
+    <!-- 履歴/修正モーダル（グラフ表示対応） -->
     <div id="historyModal" class="fixed inset-0 bg-black/80 z-50 hidden flex items-center justify-center p-4 backdrop-blur-sm" onclick="toggleHistoryModal()">
-        <div class="bg-white dark:bg-dark-card w-full max-w-sm rounded-xl overflow-hidden shadow-2xl max-h-[80vh] flex flex-col" onclick="event.stopPropagation()">
+        <div class="bg-white dark:bg-dark-card w-full max-w-sm rounded-xl overflow-hidden shadow-2xl max-h-[85vh] flex flex-col" onclick="event.stopPropagation()">
             <div class="p-4 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center bg-gray-50 dark:bg-gray-800">
-                <h3 class="font-bold text-gray-700 dark:text-gray-200">📝 今月の履歴修正</h3>
+                <h3 class="font-bold text-gray-700 dark:text-gray-200">📊 月間売上レポート</h3>
                 <button onclick="toggleHistoryModal()" class="text-2xl leading-none text-gray-500">&times;</button>
             </div>
-            <div class="flex-1 overflow-y-auto p-4 space-y-2" id="historyListContainer">
+            
+            <div class="flex-1 overflow-y-auto p-4" id="historyListContainer">
                 <!-- JS生成 -->
             </div>
+            
             <div class="p-3 border-t border-gray-100 dark:border-gray-800 text-center bg-gray-50 dark:bg-dark-card">
                 <button onclick="toggleHistoryModal()" class="w-full bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 py-2 rounded-lg font-bold text-sm">閉じる</button>
             </div>
@@ -280,14 +282,15 @@
         ];
 
         let STATE = {
-            revenue: JSON.parse(localStorage.getItem('taxi_rev_platinum') || '[]'),
-            target: parseInt(localStorage.getItem('taxi_target_platinum') || '600000'),
-            offset: parseInt(localStorage.getItem('taxi_offset_platinum') || '0'),
-            trains: JSON.parse(localStorage.getItem('taxi_trains_platinum') || JSON.stringify(DEFAULT_TRAINS)),
-            longLogs: JSON.parse(localStorage.getItem('taxi_longlogs') || '[]')
+            revenue: JSON.parse(localStorage.getItem('taxi_rev_diamond') || '[]'),
+            target: parseInt(localStorage.getItem('taxi_target_diamond') || '600000'),
+            offset: parseInt(localStorage.getItem('taxi_offset_diamond') || '0'),
+            trains: JSON.parse(localStorage.getItem('taxi_trains_diamond') || JSON.stringify(DEFAULT_TRAINS)),
+            longLogs: JSON.parse(localStorage.getItem('taxi_longlogs') || '[]'),
+            darkMode: localStorage.getItem('taxi_dark') === '1'
         };
 
-        // --- Basic Logic ---
+        // --- Logic ---
         function getNow() { return new Date(); }
         function getLogicalDate() {
             const now = getNow();
@@ -299,7 +302,6 @@
             return now;
         }
         function getDateStr(d) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
-        
         function getShiftStatus(logicalDate) {
             const t = new Date(logicalDate.getFullYear(), logicalDate.getMonth(), logicalDate.getDate());
             const a = new Date(CONFIG.anchorDate.getFullYear(), CONFIG.anchorDate.getMonth(), CONFIG.anchorDate.getDate());
@@ -308,7 +310,6 @@
             const isWork = CONFIG.pattern[idx] === 1;
             return { isWork, idx, label: isWork ? `${idx+1}日目` : `休日(${idx-3}日目)` };
         }
-
         function calcWorkDays(logicalDate) {
             const y = logicalDate.getFullYear(), m = logicalDate.getMonth();
             const lastDay = new Date(y, m + 1, 0).getDate();
@@ -321,14 +322,32 @@
             return { total, future };
         }
 
-        // --- Render Main ---
+        // --- Dark Mode ---
+        function applyTheme() {
+            const html = document.documentElement;
+            const icon = document.getElementById('themeIcon');
+            if (STATE.darkMode) {
+                html.classList.add('dark');
+                icon.innerText = '☀️';
+            } else {
+                html.classList.remove('dark');
+                icon.innerText = '🌙';
+            }
+        }
+        function toggleDarkMode() {
+            STATE.darkMode = !STATE.darkMode;
+            localStorage.setItem('taxi_dark', STATE.darkMode ? '1' : '0');
+            applyTheme();
+        }
+
+        // --- Render ---
         function render() {
             const now = getNow();
             const lDate = getLogicalDate();
             const lDateStr = getDateStr(lDate);
             const monthStr = lDateStr.substring(0, 7);
 
-            // Header
+            // Clock
             const days = ['日','月','火','水','木','金','土'];
             document.getElementById('clockDisplay').textContent = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
             document.getElementById('logicalDateDisplay').textContent = `${lDate.getMonth()+1}/${lDate.getDate()} (${days[lDate.getDay()]})扱い`;
@@ -339,50 +358,43 @@
             document.getElementById('shiftStatus').className = shift.isWork ? "text-2xl font-black text-indigo-600 dark:text-indigo-400" : "text-2xl font-black text-red-500 dark:text-red-400";
             document.getElementById('nextOff').textContent = shift.isWork ? (4-shift.idx===1?"明日休":`あと${4-shift.idx}日`) : "休み";
 
-            // Revenue
+            // Data
             const todayRecord = STATE.revenue.find(r => r.date === lDateStr && !r.isKoshutsu);
             const todayAmt = todayRecord ? todayRecord.amount : 0;
             const monthTotal = STATE.revenue.filter(r => r.date.startsWith(monthStr)).reduce((sum, r) => sum + r.amount, 0);
             
-            // Targets
+            // Stats
             const workStats = calcWorkDays(lDate);
             const staticDailyTarget = Math.round(STATE.target / (workStats.total || 1));
             const remainingNeeded = STATE.target - monthTotal;
             const dynamicDailyTarget = workStats.future > 0 ? Math.max(0, Math.round(remainingNeeded / workStats.future)) : 0;
 
-            // UI Text
             document.getElementById('todayTotal').textContent = todayAmt.toLocaleString();
             document.getElementById('monthlyTotalFooter').textContent = `¥${monthTotal.toLocaleString()}`;
             document.getElementById('staticTargetMini').textContent = `¥${staticDailyTarget.toLocaleString()}`;
             document.getElementById('staticRate').textContent = staticDailyTarget > 0 ? Math.round((todayAmt/staticDailyTarget)*100) : 0;
             
-            // Dynamic Rate
             const yesterdayTotal = monthTotal - todayAmt; 
             const daysLeftIncludingToday = workStats.future + 1;
             const todayDynamicTarget = Math.round((STATE.target - yesterdayTotal) / daysLeftIncludingToday);
             document.getElementById('dynamicTargetMini').textContent = `¥${todayDynamicTarget.toLocaleString()}`;
             document.getElementById('dynamicRate').textContent = todayDynamicTarget > 0 ? Math.round((todayAmt/todayDynamicTarget)*100) : 100;
 
-            // Future Info
             document.getElementById('futureDaysCount').textContent = workStats.future;
             const dTargetEl = document.getElementById('dynamicTarget');
             const dDiffEl = document.getElementById('targetDiff');
             if (workStats.future === 0) {
-                dTargetEl.textContent = "---";
-                dDiffEl.textContent = "";
-                document.getElementById('dynamicMessage').textContent = "今月最終営業日";
+                dTargetEl.textContent = "---"; dDiffEl.textContent = ""; document.getElementById('dynamicMessage').textContent = "今月最終営業日";
             } else {
                 dTargetEl.textContent = `¥${dynamicDailyTarget.toLocaleString()}`;
                 const diff = dynamicDailyTarget - staticDailyTarget;
                 if (diff <= 0) {
                     dTargetEl.className = "text-xl font-black stat-value text-blue-500 dark:text-blue-400";
-                    dDiffEl.textContent = `▼${Math.abs(diff).toLocaleString()}`;
-                    dDiffEl.className = "text-xs font-bold stat-value text-blue-500";
+                    dDiffEl.textContent = `▼${Math.abs(diff).toLocaleString()}`; dDiffEl.className = "text-xs font-bold stat-value text-blue-500";
                     document.getElementById('dynamicMessage').textContent = "順調です";
                 } else {
                     dTargetEl.className = "text-xl font-black stat-value text-red-500 dark:text-orange-400";
-                    dDiffEl.textContent = `▲${diff.toLocaleString()}`;
-                    dDiffEl.className = "text-xs font-bold stat-value text-red-500 dark:text-orange-400";
+                    dDiffEl.textContent = `▲${diff.toLocaleString()}`; dDiffEl.className = "text-xs font-bold stat-value text-red-500 dark:text-orange-400";
                     document.getElementById('dynamicMessage').textContent = "ペースアップ";
                 }
             }
@@ -403,212 +415,160 @@
                 }
             });
 
-            checkAlerts(now, lDate);
-            renderLongLogs();
+            checkAlerts(now);
         }
 
-        // --- Alerts Logic ---
-        function checkAlerts(now, lDate) {
-            // 1. Train Alert
+        // --- Alert Logic ---
+        function checkAlerts(now) {
             let currentMins = now.getHours() * 60 + now.getMinutes();
             if (now.getHours() < 4) currentMins += 1440;
+            // Train
             const upcomingTrains = STATE.trains.map(t => {
                 const [h, m] = t.time.split(':').map(Number);
-                let tm = h * 60 + m;
-                if(h < 4) tm += 1440; // DB側が24時制(00:xx)の場合の補正
+                let tm = h * 60 + m; if(h < 4) tm += 1440;
                 return { ...t, diff: tm - currentMins };
             }).filter(t => t.diff >= 10 && t.diff <= 90).sort((a,b) => a.diff - b.diff);
-
             const tBox = document.getElementById('trainAlertBox');
             if (upcomingTrains.length > 0) {
                 tBox.classList.remove('hidden');
                 document.getElementById('trainTicker').innerHTML = `<div class="animate-marquee inline-block">${upcomingTrains.slice(0,3).map(t=>`<span class="mr-3">${t.station} <span class="text-red-500">${t.time}</span> (${t.diff}分後)</span>`).join('')}</div>`;
-            } else {
-                tBox.classList.add('hidden');
-            }
-
-            // 2. Long Log Alert
+            } else { tBox.classList.add('hidden'); }
+            // Long Log
             const dayOfWeek = now.getDay(); 
             const lBox = document.getElementById('longAlertBox');
-            
             const upcomingLogs = STATE.longLogs.filter(l => {
                 if(parseInt(l.day) !== dayOfWeek) return false;
                 const [h, m] = l.time.split(':').map(Number);
-                let lm = h * 60 + m;
-                if(h < 4) lm += 1440;
+                let lm = h * 60 + m; if(h < 4) lm += 1440;
                 const diff = lm - currentMins;
-                return diff >= 0 && diff <= 45; // 45分前から通知
+                return diff >= 0 && diff <= 45;
             });
-
             if(upcomingLogs.length > 0) {
                 lBox.classList.remove('hidden');
                 const log = upcomingLogs[0];
                 document.getElementById('longAlertText').textContent = `もうすぐ：${log.to}行き (${log.from})`;
-            } else {
-                lBox.classList.add('hidden');
-            }
+            } else { lBox.classList.add('hidden'); }
         }
 
-        // --- Long Log Logic ---
-        function addLongLog() {
-            const day = document.getElementById('longDay').value;
-            const time = document.getElementById('longTime').value;
-            const from = document.getElementById('longFrom').value;
-            const to = document.getElementById('longTo').value;
-            if(!time || !from || !to) return alert("全ての項目を入力してください");
-
-            STATE.longLogs.push({ id: Date.now(), day, time, from, to });
-            STATE.longLogs.sort((a,b) => a.time.localeCompare(b.time));
-            saveData();
-            document.getElementById('longFrom').value = '';
-            document.getElementById('longTo').value = '';
-            renderLongLogs();
-        }
-
-        function deleteLongLog(id) {
-            if(!confirm("削除しますか？")) return;
-            STATE.longLogs = STATE.longLogs.filter(l => l.id !== id);
-            saveData();
-            renderLongLogs();
-        }
-
-        function renderLongLogs() {
-            const list = document.getElementById('longLogList');
-            const dayNames = ['日','月','火','水','木','金','土'];
-            list.innerHTML = STATE.longLogs.map(l => `
-                <div class="flex justify-between items-center bg-gray-50 dark:bg-gray-800 p-2 rounded border border-gray-100 dark:border-gray-700">
-                    <div>
-                        <div class="text-xs font-bold text-purple-600 dark:text-purple-400">
-                            ${dayNames[l.day]} ${l.time}
-                        </div>
-                        <div class="text-[10px] text-gray-600 dark:text-gray-300">
-                            ${l.from} ➡ ${l.to}
-                        </div>
-                    </div>
-                    <button onclick="deleteLongLog(${l.id})" class="text-red-400 text-xs px-2">🗑️</button>
-                </div>
-            `).join('');
-        }
-
-        // --- History / Edit Modal Logic ---
+        // --- History Modal (Graph) ---
         function toggleHistoryModal() {
             const m = document.getElementById('historyModal');
             m.classList.toggle('hidden');
             if(!m.classList.contains('hidden')) renderHistoryList();
         }
-
         function renderHistoryList() {
             const lDate = getLogicalDate();
             const monthStr = getDateStr(lDate).substring(0, 7);
             const monthlyData = STATE.revenue.filter(r => r.date.startsWith(monthStr)).sort((a,b) => a.date.localeCompare(b.date));
-            
             const container = document.getElementById('historyListContainer');
+            
             if(monthlyData.length === 0) {
                 container.innerHTML = '<p class="text-center text-xs text-gray-500 mt-4">データがありません</p>';
                 return;
             }
 
-            container.innerHTML = monthlyData.map(r => {
+            // グラフ生成
+            let html = '<div class="space-y-3">';
+            monthlyData.forEach(r => {
                 const d = new Date(r.date);
                 const dayName = ['日','月','火','水','木','金','土'][d.getDay()];
-                return `
-                <div class="flex justify-between items-center bg-gray-50 dark:bg-gray-800 p-3 rounded">
-                    <div>
-                        <div class="text-xs text-gray-500">${r.date.slice(5)} (${dayName}) ${r.isKoshutsu?'<span class="text-orange-500 font-bold">公出</span>':''}</div>
-                        <div class="font-bold dark:text-white">¥${r.amount.toLocaleString()}</div>
+                const isSunday = d.getDay() === 0;
+                const dateClass = isSunday ? 'text-red-500' : 'text-gray-500 dark:text-gray-400';
+                
+                // バーの長さを計算 (最大10万円想定で%計算)
+                const maxScale = 100000;
+                let percent = Math.min(100, Math.round((r.amount / maxScale) * 100));
+                
+                // 色分け
+                let barColor = 'bg-blue-400 dark:bg-blue-600';
+                if(r.amount >= 70000) barColor = 'bg-green-400 dark:bg-green-600';
+                if(r.amount >= 90000) barColor = 'bg-yellow-400 dark:bg-yellow-600';
+                if(r.amount < 40000) barColor = 'bg-gray-300 dark:bg-gray-600';
+
+                html += `
+                <div class="flex items-center text-xs">
+                    <div class="w-12 font-bold ${dateClass} flex-shrink-0">${d.getDate()} (${dayName})</div>
+                    <div class="flex-1 mx-2 h-4 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden relative cursor-pointer" onclick="editHistoryItem(${r.id}, ${r.amount})">
+                        <div class="h-full ${barColor} transition-all duration-500" style="width: ${percent}%"></div>
                     </div>
-                    <button onclick="editHistoryItem(${r.id}, ${r.amount})" class="bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-200 px-3 py-1 rounded text-xs font-bold">修正</button>
-                </div>
-            `}).join('');
+                    <div class="w-16 text-right font-bold text-gray-800 dark:text-white flex-shrink-0">¥${(r.amount/10000).toFixed(1)}万</div>
+                </div>`;
+            });
+            html += '</div>';
+            container.innerHTML = html;
         }
 
-        function editHistoryItem(id, oldVal) {
-            const newVal = prompt("修正後の金額を入力してください", oldVal);
-            if(newVal === null) return;
-            const amt = parseInt(newVal);
-            if(isNaN(amt)) return alert("数値を入力してください");
-            
-            const idx = STATE.revenue.findIndex(r => r.id === id);
-            if(idx >= 0) {
-                STATE.revenue[idx].amount = amt;
-                saveData();
-                renderHistoryList();
-            }
+        // --- Other Handlers ---
+        function addLongLog() {
+            const day = document.getElementById('longDay').value;
+            const time = document.getElementById('longTime').value;
+            const from = document.getElementById('longFrom').value;
+            const to = document.getElementById('longTo').value;
+            if(!time || !from || !to) return alert("入力してください");
+            STATE.longLogs.push({ id: Date.now(), day, time, from, to });
+            saveData(); document.getElementById('longFrom').value=''; document.getElementById('longTo').value=''; renderLongLogs();
         }
-
-        // --- Train Edit Logic ---
+        function renderLongLogs() {
+            const list = document.getElementById('longLogList');
+            const dayNames = ['日','月','火','水','木','金','土'];
+            list.innerHTML = STATE.longLogs.map(l => `
+                <div class="flex justify-between items-center bg-gray-50 dark:bg-gray-800 p-2 rounded border border-gray-100 dark:border-gray-700">
+                    <div><div class="text-xs font-bold text-purple-600 dark:text-purple-400">${dayNames[l.day]} ${l.time}</div>
+                    <div class="text-[10px] text-gray-600 dark:text-gray-300">${l.from} ➡ ${l.to}</div></div>
+                    <button onclick="deleteLongLog(${l.id})" class="text-red-400 text-xs px-2">🗑️</button>
+                </div>`).join('');
+        }
+        function deleteLongLog(id) { if(confirm("削除しますか？")) { STATE.longLogs = STATE.longLogs.filter(l=>l.id!==id); saveData(); renderLongLogs(); } }
+        
         let isTrainEditMode = false;
-        function toggleTrainModal() {
-            document.getElementById('trainModal').classList.toggle('hidden');
-            renderTrainList();
-        }
-        function toggleTrainEditMode() {
-            isTrainEditMode = document.getElementById('trainEditMode').checked;
-            renderTrainList();
-        }
+        function toggleTrainModal() { document.getElementById('trainModal').classList.toggle('hidden'); renderTrainList(); }
+        function toggleTrainEditMode() { isTrainEditMode = document.getElementById('trainEditMode').checked; renderTrainList(); }
         function renderTrainList() {
             const c = document.getElementById('trainListContainer');
-            c.innerHTML = STATE.trains.map((t, index) => {
-                if(isTrainEditMode) {
-                    return `
-                    <div class="bg-gray-50 dark:bg-gray-800 p-2 rounded mb-2 border border-blue-200 dark:border-blue-900">
-                        <div class="flex gap-2 mb-1">
-                            <input type="text" value="${t.station}" onchange="updateTrain(${index}, 'station', this.value)" class="w-1/3 p-1 text-xs border rounded bg-white dark:bg-dark-input dark:text-white">
-                            <input type="time" value="${t.time.replace('24:','00:').replace('25:','01:')}" onchange="updateTrain(${index}, 'time', this.value)" class="w-1/3 p-1 text-xs border rounded bg-white dark:bg-dark-input dark:text-white">
-                        </div>
-                        <input type="text" value="${t.line}" onchange="updateTrain(${index}, 'line', this.value)" class="w-full p-1 text-xs border rounded bg-white dark:bg-dark-input dark:text-white">
-                    </div>`;
-                } else {
-                    return `
-                    <div class="flex justify-between items-center py-2 border-b border-gray-100 dark:border-gray-800 last:border-0">
-                        <div>
-                            <span class="font-bold text-gray-700 dark:text-gray-200 mr-2">${t.station}</span>
-                            <span class="text-gray-400 text-[10px]">${t.line}</span>
-                        </div>
-                        <span class="font-mono font-bold text-indigo-600 dark:text-indigo-400">${t.time}</span>
-                    </div>`;
-                }
-            }).join('');
+            c.innerHTML = STATE.trains.map((t, i) => isTrainEditMode ? 
+                `<div class="bg-gray-50 dark:bg-gray-800 p-2 rounded mb-2 border border-blue-200 dark:border-blue-900">
+                    <div class="flex gap-2 mb-1"><input type="text" value="${t.station}" onchange="updateTrain(${i},'station',this.value)" class="w-1/3 p-1 text-xs border rounded dark:bg-dark-input dark:text-white"><input type="time" value="${t.time.replace('24:','00:').replace('25:','01:')}" onchange="updateTrain(${i},'time',this.value)" class="w-1/3 p-1 text-xs border rounded dark:bg-dark-input dark:text-white"></div>
+                    <input type="text" value="${t.line}" onchange="updateTrain(${i},'line',this.value)" class="w-full p-1 text-xs border rounded dark:bg-dark-input dark:text-white">
+                </div>` : 
+                `<div class="flex justify-between items-center py-2 border-b border-gray-100 dark:border-gray-800 last:border-0"><div><span class="font-bold text-gray-700 dark:text-gray-200 mr-2">${t.station}</span><span class="text-gray-400 text-[10px]">${t.line}</span></div><span class="font-mono font-bold text-indigo-600 dark:text-indigo-400">${t.time}</span></div>`
+            ).join('');
         }
-        function updateTrain(index, field, value) {
-            STATE.trains[index][field] = value;
-            saveData();
-        }
+        function updateTrain(i, f, v) { STATE.trains[i][f] = v; saveData(); }
 
-        // --- Global Actions ---
         window.handleUpdateCurrent = () => {
             const amt = parseInt(document.getElementById('meterAmount').value);
             if(isNaN(amt)) return;
             const dStr = getDateStr(getLogicalDate());
             const idx = STATE.revenue.findIndex(r => r.date === dStr && !r.isKoshutsu);
-            if(idx >= 0) { STATE.revenue[idx].amount = amt; }
-            else { STATE.revenue.push({ id:Date.now(), date:dStr, amount:amt, isKoshutsu:false }); }
-            saveData();
-            const btn = document.activeElement; const org=btn.innerHTML; btn.innerHTML="✅"; setTimeout(()=>btn.innerHTML=org,500);
+            if(idx >= 0) { STATE.revenue[idx].amount = amt; } else { STATE.revenue.push({ id:Date.now(), date:dStr, amount:amt, isKoshutsu:false }); }
+            saveData(); const btn = document.activeElement; const org=btn.innerHTML; btn.innerHTML="✅"; setTimeout(()=>btn.innerHTML=org,500);
         };
         window.handleEndShift = () => {
-            const amt = parseInt(document.getElementById('meterAmount').value);
-            if(isNaN(amt)) return alert("金額を入力してください");
-            const lDate = getLogicalDate();
-            if(!confirm(`【業務終了】\n${lDate.getMonth()+1}/${lDate.getDate()}の売上: ¥${amt.toLocaleString()}\n確定しますか？`)) return;
+            const amt = parseInt(document.getElementById('meterAmount').value); if(isNaN(amt)) return alert("金額を入力?");
+            const lDate = getLogicalDate(); if(!confirm(`【業務終了】\n${lDate.getMonth()+1}/${lDate.getDate()}売上: ¥${amt.toLocaleString()}\n確定しますか？`)) return;
             const idx = STATE.revenue.findIndex(r => r.date === getDateStr(lDate) && !r.isKoshutsu);
             if(idx>=0) STATE.revenue[idx].amount = amt; else STATE.revenue.push({ id:Date.now(), date:getDateStr(lDate), amount:amt, isKoshutsu:false });
             saveData(); alert("記録しました");
         };
-        window.adjustShift = v => { STATE.offset+=v; localStorage.setItem('taxi_offset_platinum', STATE.offset); render(); };
+        window.editHistoryItem = (id, old) => {
+            const v = prompt("修正後の金額", old); if(!v) return;
+            const idx = STATE.revenue.findIndex(r => r.id === id); if(idx>=0) { STATE.revenue[idx].amount = parseInt(v); saveData(); renderHistoryList(); }
+        };
+        window.adjustShift = v => { STATE.offset+=v; localStorage.setItem('taxi_offset_diamond', STATE.offset); render(); };
         window.setTarget = v => { STATE.target=v; saveData(); };
-        
         function saveData() { 
-            localStorage.setItem('taxi_rev_platinum', JSON.stringify(STATE.revenue)); 
-            localStorage.setItem('taxi_target_platinum', STATE.target); 
-            localStorage.setItem('taxi_trains_platinum', JSON.stringify(STATE.trains));
+            localStorage.setItem('taxi_rev_diamond', JSON.stringify(STATE.revenue)); 
+            localStorage.setItem('taxi_target_diamond', STATE.target); 
+            localStorage.setItem('taxi_trains_diamond', JSON.stringify(STATE.trains));
             localStorage.setItem('taxi_longlogs', JSON.stringify(STATE.longLogs));
             render(); 
         }
 
-        if(localStorage.getItem('dark')==='1') document.documentElement.classList.add('dark');
+        // Init
+        applyTheme();
         setInterval(render, 30000);
-        render(); // Init
+        render();
+        renderLongLogs();
     </script>
 </body>
 </html>
