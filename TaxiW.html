@@ -6,7 +6,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MAGI TAXI - Diamond</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
         tailwind.config = {
             darkMode: 'class',
@@ -103,7 +102,7 @@
         <!-- 売上 & W達成率 -->
         <div class="bg-white dark:bg-dark-card rounded-xl shadow-lg p-4 mb-4 border-l-4 border-green-500">
             <div class="flex justify-between items-center mb-1">
-                <h2 class="text-xs font-bold text-gray-500 uppercase flex items-center gap-1">
+                <h2 class="text-xs font-bold text-gray-500 uppercase flex items-center gap-1" id="todayTotalLabel">
                     <span class="w-2 h-2 rounded-full bg-green-500 blink-dot"></span> 現在の売上
                 </h2>
             </div>
@@ -143,7 +142,7 @@
         <!-- 入力エリア -->
         <div class="bg-white dark:bg-dark-card rounded-xl shadow-lg p-4 mb-6">
             <div class="mb-3">
-                <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-2">現在のメーター合計</label>
+                <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-2">現在のメーター合計 (税込そのまま入力)</label>
                 <div class="relative">
                     <input type="number" id="meterAmount" inputmode="numeric" class="w-full pl-4 pr-4 py-3 text-2xl font-bold bg-gray-100 dark:bg-dark-input border-2 border-transparent focus:border-blue-500 dark:text-white rounded-xl outline-none placeholder-gray-400 text-center" placeholder="0">
                 </div>
@@ -201,7 +200,13 @@
         <!-- フッター上部: 月間売上 & 編集ボタン -->
         <div class="fixed bottom-[55px] left-0 right-0 bg-gray-900 dark:bg-gray-800 text-white p-2 px-4 z-30 border-t border-gray-700 shadow-lg flex justify-between items-center">
             <div>
-                <p class="text-[10px] text-gray-400">今月の売上合計</p>
+                <div class="flex items-center gap-2 mb-0.5">
+                    <p class="text-[10px] text-gray-400" id="monthlyTotalLabel">今月の売上合計</p>
+                    <!-- 税抜/税込 切り替えボタン -->
+                    <button id="taxToggleBtn" onclick="toggleTax()" class="px-2 py-0.5 bg-gray-700 hover:bg-gray-600 rounded text-[9px] font-bold text-gray-300 transition-colors border border-gray-600">
+                        税抜に切替
+                    </button>
+                </div>
                 <p class="text-xl font-bold stat-value" id="monthlyTotalFooter">¥0</p>
             </div>
             <button onclick="toggleHistoryModal()" class="bg-gray-700 hover:bg-gray-600 border border-gray-600 text-white px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-1 transition active:scale-95">
@@ -213,11 +218,13 @@
         <div class="fixed bottom-0 left-0 right-0 bg-white dark:bg-dark-card border-t dark:border-gray-800 p-2 z-30 pb-safe h-[55px]">
             <div class="container mx-auto max-w-lg">
                 <div class="flex justify-between items-center gap-1 overflow-x-auto no-scrollbar">
-                    <button onclick="setTarget(600000)" class="target-btn flex-1 min-w-[50px] py-2 text-[10px] font-bold rounded border dark:border-gray-700 dark:text-gray-300 transition-colors">60万</button>
-                    <button onclick="setTarget(700000)" class="target-btn flex-1 min-w-[50px] py-2 text-[10px] font-bold rounded border dark:border-gray-700 dark:text-gray-300 transition-colors">70万</button>
-                    <button onclick="setTarget(800000)" class="target-btn flex-1 min-w-[50px] py-2 text-[10px] font-bold rounded border dark:border-gray-700 dark:text-gray-300 transition-colors">80万</button>
-                    <button onclick="setTarget(900000)" class="target-btn flex-1 min-w-[50px] py-2 text-[10px] font-bold rounded border dark:border-gray-700 dark:text-gray-300 transition-colors">90万</button>
-                    <button onclick="setTarget(1000000)" class="target-btn flex-1 min-w-[50px] py-2 text-[10px] font-bold rounded border dark:border-gray-700 dark:text-gray-300 transition-colors">100万</button>
+                    <button onclick="setTarget(400000)" class="target-btn flex-1 min-w-[45px] py-2 text-[10px] font-bold rounded border dark:border-gray-700 dark:text-gray-300 transition-colors">40万</button>
+                    <button onclick="setTarget(500000)" class="target-btn flex-1 min-w-[45px] py-2 text-[10px] font-bold rounded border dark:border-gray-700 dark:text-gray-300 transition-colors">50万</button>
+                    <button onclick="setTarget(600000)" class="target-btn flex-1 min-w-[45px] py-2 text-[10px] font-bold rounded border dark:border-gray-700 dark:text-gray-300 transition-colors">60万</button>
+                    <button onclick="setTarget(700000)" class="target-btn flex-1 min-w-[45px] py-2 text-[10px] font-bold rounded border dark:border-gray-700 dark:text-gray-300 transition-colors">70万</button>
+                    <button onclick="setTarget(800000)" class="target-btn flex-1 min-w-[45px] py-2 text-[10px] font-bold rounded border dark:border-gray-700 dark:text-gray-300 transition-colors">80万</button>
+                    <button onclick="setTarget(900000)" class="target-btn flex-1 min-w-[45px] py-2 text-[10px] font-bold rounded border dark:border-gray-700 dark:text-gray-300 transition-colors">90万</button>
+                    <button onclick="setTarget(1000000)" class="target-btn flex-1 min-w-[45px] py-2 text-[10px] font-bold rounded border dark:border-gray-700 dark:text-gray-300 transition-colors">100万</button>
                 </div>
             </div>
         </div>
@@ -248,7 +255,7 @@
     <div id="historyModal" class="fixed inset-0 bg-black/80 z-50 hidden flex items-center justify-center p-4 backdrop-blur-sm" onclick="toggleHistoryModal()">
         <div class="bg-white dark:bg-dark-card w-full max-w-sm rounded-xl overflow-hidden shadow-2xl max-h-[85vh] flex flex-col" onclick="event.stopPropagation()">
             <div class="p-4 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center bg-gray-50 dark:bg-gray-800">
-                <h3 class="font-bold text-gray-700 dark:text-gray-200">📊 月間売上レポート</h3>
+                <h3 class="font-bold text-gray-700 dark:text-gray-200" id="historyModalTitle">📊 月間売上レポート</h3>
                 <button onclick="toggleHistoryModal()" class="text-2xl leading-none text-gray-500">&times;</button>
             </div>
             
@@ -287,7 +294,9 @@
             offset: parseInt(localStorage.getItem('taxi_offset_diamond') || '0'),
             trains: JSON.parse(localStorage.getItem('taxi_trains_diamond') || JSON.stringify(DEFAULT_TRAINS)),
             longLogs: JSON.parse(localStorage.getItem('taxi_longlogs') || '[]'),
-            darkMode: localStorage.getItem('taxi_dark') === '1'
+            darkMode: localStorage.getItem('taxi_dark') === '1',
+            // 税抜表示フラグ（デフォルトで税抜にするため、'0'以外はtrue）
+            isTaxExcluded: localStorage.getItem('taxi_tax_excluded') !== '0' 
         };
 
         // --- Logic ---
@@ -340,6 +349,16 @@
             applyTheme();
         }
 
+        // --- Tax Toggle ---
+        function toggleTax() {
+            STATE.isTaxExcluded = !STATE.isTaxExcluded;
+            localStorage.setItem('taxi_tax_excluded', STATE.isTaxExcluded ? '1' : '0');
+            render();
+            if(!document.getElementById('historyModal').classList.contains('hidden')) {
+                renderHistoryList();
+            }
+        }
+
         // --- Render ---
         function render() {
             const now = getNow();
@@ -358,12 +377,16 @@
             document.getElementById('shiftStatus').className = shift.isWork ? "text-2xl font-black text-indigo-600 dark:text-indigo-400" : "text-2xl font-black text-red-500 dark:text-red-400";
             document.getElementById('nextOff').textContent = shift.isWork ? (4-shift.idx===1?"明日休":`あと${4-shift.idx}日`) : "休み";
 
-            // Data
+            // Data (生の税込データ)
             const todayRecord = STATE.revenue.find(r => r.date === lDateStr && !r.isKoshutsu);
-            const todayAmt = todayRecord ? todayRecord.amount : 0;
-            const monthTotal = STATE.revenue.filter(r => r.date.startsWith(monthStr)).reduce((sum, r) => sum + r.amount, 0);
+            const rawTodayAmt = todayRecord ? todayRecord.amount : 0;
+            const rawMonthTotal = STATE.revenue.filter(r => r.date.startsWith(monthStr)).reduce((sum, r) => sum + r.amount, 0);
             
-            // Stats
+            // 税抜フラグがONなら、計算ベースを税抜(÷1.1)に変換
+            const todayAmt = STATE.isTaxExcluded ? Math.round(rawTodayAmt / 1.1) : rawTodayAmt;
+            const monthTotal = STATE.isTaxExcluded ? Math.round(rawMonthTotal / 1.1) : rawMonthTotal;
+            
+            // Stats (変換後の数値で計算)
             const workStats = calcWorkDays(lDate);
             const staticDailyTarget = Math.round(STATE.target / (workStats.total || 1));
             const remainingNeeded = STATE.target - monthTotal;
@@ -399,11 +422,17 @@
                 }
             }
 
-            // Sync Input
-            const input = document.getElementById('meterAmount');
-            if(document.activeElement !== input && todayAmt > 0) input.value = todayAmt;
+            // テキストラベルの切り替え
+            const taxLabelStr = STATE.isTaxExcluded ? "税抜" : "税込";
+            document.getElementById('monthlyTotalLabel').textContent = `今月の売上合計 (${taxLabelStr})`;
+            document.getElementById('taxToggleBtn').textContent = STATE.isTaxExcluded ? "税込に戻す" : "税抜表示にする";
+            document.getElementById('todayTotalLabel').innerHTML = `<span class="w-2 h-2 rounded-full bg-green-500 blink-dot"></span> 現在の売上 <span class="text-[9px] text-gray-400 font-normal">(${taxLabelStr})</span>`;
 
-            // Footer Buttons
+            // Sync Input (入力欄には常に「生」の税込データを表示)
+            const input = document.getElementById('meterAmount');
+            if(document.activeElement !== input && rawTodayAmt > 0) input.value = rawTodayAmt;
+
+            // Footer Buttons (目標ボタンのハイライト)
             document.querySelectorAll('.target-btn').forEach(btn => {
                 const v = parseInt(btn.innerText.replace('万', '0000'));
                 if(v === STATE.target) {
@@ -462,6 +491,8 @@
             const monthlyData = STATE.revenue.filter(r => r.date.startsWith(monthStr)).sort((a,b) => a.date.localeCompare(b.date));
             const container = document.getElementById('historyListContainer');
             
+            document.getElementById('historyModalTitle').textContent = `📊 月間売上レポート (${STATE.isTaxExcluded ? '税抜' : '税込'})`;
+
             if(monthlyData.length === 0) {
                 container.innerHTML = '<p class="text-center text-xs text-gray-500 mt-4">データがありません</p>';
                 return;
@@ -475,15 +506,22 @@
                 const isSunday = d.getDay() === 0;
                 const dateClass = isSunday ? 'text-red-500' : 'text-gray-500 dark:text-gray-400';
                 
-                // バーの長さを計算 (最大10万円想定で%計算)
-                const maxScale = 100000;
-                let percent = Math.min(100, Math.round((r.amount / maxScale) * 100));
+                // 税抜計算を適用
+                const amount = STATE.isTaxExcluded ? Math.round(r.amount / 1.1) : r.amount;
+
+                // バーの長さを計算 (最大10万、税抜なら約9万スケール)
+                const maxScale = STATE.isTaxExcluded ? 90909 : 100000;
+                let percent = Math.min(100, Math.round((amount / maxScale) * 100));
                 
-                // 色分け
+                // 色分け (税抜時は基準値も下げる)
+                const thr70 = STATE.isTaxExcluded ? Math.round(70000/1.1) : 70000;
+                const thr90 = STATE.isTaxExcluded ? Math.round(90000/1.1) : 90000;
+                const thr40 = STATE.isTaxExcluded ? Math.round(40000/1.1) : 40000;
+
                 let barColor = 'bg-blue-400 dark:bg-blue-600';
-                if(r.amount >= 70000) barColor = 'bg-green-400 dark:bg-green-600';
-                if(r.amount >= 90000) barColor = 'bg-yellow-400 dark:bg-yellow-600';
-                if(r.amount < 40000) barColor = 'bg-gray-300 dark:bg-gray-600';
+                if(amount >= thr70) barColor = 'bg-green-400 dark:bg-green-600';
+                if(amount >= thr90) barColor = 'bg-yellow-400 dark:bg-yellow-600';
+                if(amount < thr40) barColor = 'bg-gray-300 dark:bg-gray-600';
 
                 html += `
                 <div class="flex items-center text-xs">
@@ -491,7 +529,7 @@
                     <div class="flex-1 mx-2 h-4 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden relative cursor-pointer" onclick="editHistoryItem(${r.id}, ${r.amount})">
                         <div class="h-full ${barColor} transition-all duration-500" style="width: ${percent}%"></div>
                     </div>
-                    <div class="w-16 text-right font-bold text-gray-800 dark:text-white flex-shrink-0">¥${(r.amount/10000).toFixed(1)}万</div>
+                    <div class="w-16 text-right font-bold text-gray-800 dark:text-white flex-shrink-0">¥${(amount/10000).toFixed(1)}万</div>
                 </div>`;
             });
             html += '</div>';
@@ -545,13 +583,13 @@
         };
         window.handleEndShift = () => {
             const amt = parseInt(document.getElementById('meterAmount').value); if(isNaN(amt)) return alert("金額を入力?");
-            const lDate = getLogicalDate(); if(!confirm(`【業務終了】\n${lDate.getMonth()+1}/${lDate.getDate()}売上: ¥${amt.toLocaleString()}\n確定しますか？`)) return;
+            const lDate = getLogicalDate(); if(!confirm(`【業務終了】\n${lDate.getMonth()+1}/${lDate.getDate()}のメーター売上: ¥${amt.toLocaleString()}\n確定しますか？`)) return;
             const idx = STATE.revenue.findIndex(r => r.date === getDateStr(lDate) && !r.isKoshutsu);
             if(idx>=0) STATE.revenue[idx].amount = amt; else STATE.revenue.push({ id:Date.now(), date:getDateStr(lDate), amount:amt, isKoshutsu:false });
             saveData(); alert("記録しました");
         };
         window.editHistoryItem = (id, old) => {
-            const v = prompt("修正後の金額", old); if(!v) return;
+            const v = prompt("修正後の金額 (※メーターの税込価格) を入力してください", old); if(!v) return;
             const idx = STATE.revenue.findIndex(r => r.id === id); if(idx>=0) { STATE.revenue[idx].amount = parseInt(v); saveData(); renderHistoryList(); }
         };
         window.adjustShift = v => { STATE.offset+=v; localStorage.setItem('taxi_offset_diamond', STATE.offset); render(); };
